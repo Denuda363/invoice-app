@@ -42,7 +42,7 @@ export default function App() {
       <div className="md:hidden flex items-center justify-between bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-30">
         <div className="flex items-center">
           <FileText className="text-blue-600 mr-2" size={24} />
-          <h1 className="font-bold text-lg text-gray-800">FakturManager</h1>
+          <h1 className="font-bold text-lg text-gray-800 line-clamp-1">Data invoice Apt Assyifa Farma Cideres</h1>
         </div>
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -69,8 +69,8 @@ export default function App() {
       >
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
           <div className="flex items-center">
-            <FileText className="text-blue-600 mr-2" size={24} />
-            <h1 className="font-bold text-lg text-gray-800 hidden md:block">FakturManager</h1>
+            <FileText className="text-blue-600 mr-2 min-w-[24px]" size={24} />
+            <h1 className="font-bold text-sm text-gray-800 hidden md:block line-clamp-2">Data invoice Apt Assyifa Farma Cideres</h1>
             <h1 className="font-bold text-lg text-gray-800 md:hidden">Menu</h1>
           </div>
           <button
