@@ -1,0 +1,6 @@
+{
+  "name": "Manajemen Faktur",
+  "description": "Aplikasi pengelolaan data faktur, pembayaran, dan laporan jatuh tempo lokal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
