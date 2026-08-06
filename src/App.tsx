@@ -155,6 +155,11 @@ export default function App() {
             <Settings
               onRestore={store.restoreData}
               getBackupData={store.getBackupData}
+              dbMode={store.dbMode}
+              setDbMode={store.setDbMode}
+              migrateLocalToFirebase={store.migrateLocalToFirebase}
+              migrateFirebaseToLocal={store.migrateFirebaseToLocal}
+              resetData={store.resetData}
             />
           )}
         </div>

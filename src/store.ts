@@ -1,11 +1,20 @@
 import { useState, useEffect } from "react";
-import { Invoice, Payment, Customer, AppData } from "./types";
+import { Invoice, Payment, Customer, AppData, DbMode } from "./types";
 import { v4 as uuidv4 } from "uuid";
+import { db } from "./firebase";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
 
 const STORAGE_KEY = "faktur_app_data_v2";
 const LEGACY_STORAGE_KEY = "faktur_app_data";
+const DB_MODE_KEY = "faktur_app_db_mode";
+
+const INITIAL_DATA: AppData = { invoices: [], customers: [] };
 
 export function useAppStore() {
+  const [dbMode, setDbModeState] = useState<DbMode>(() => {
+    return (localStorage.getItem(DB_MODE_KEY) as DbMode) || "LOCAL";
+  });
+  
   const [data, setData] = useState<AppData>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -26,12 +35,111 @@ export function useAppStore() {
         console.error("Failed to parse legacy data", e);
       }
     }
-    return { invoices: [], customers: [] };
+    return INITIAL_DATA;
   });
+  
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Sync state to current DB mode
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+    let unsubscribe: () => void;
+    
+    if (dbMode === "FIREBASE") {
+      setIsLoading(true);
+      const docRef = doc(db, "appData", "main");
+      unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const remoteData = docSnap.data() as AppData;
+          setData({
+            invoices: remoteData.invoices || [],
+            customers: remoteData.customers || []
+          });
+        }
+        setIsLoading(false);
+      }, (error) => {
+        console.error("Firestore sync error:", error);
+        setIsLoading(false);
+      });
+    } else {
+      // LOCAL mode, load from localStorage is already done in useState, but if we switch modes:
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          setData(JSON.parse(saved));
+        } catch (e) { }
+      }
+      setIsLoading(false);
+    }
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [dbMode]);
+
+  // Persist local mutations
+  const mutateData = (mutator: (prev: AppData) => AppData) => {
+    setData((prev) => {
+      const next = mutator(prev);
+      
+      // Save to localStorage regardless of mode (as backup)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      
+      // Save to Firebase if active
+      if (dbMode === "FIREBASE") {
+        setDoc(doc(db, "appData", "main"), next).catch(e => {
+          console.error("Error saving to Firestore", e);
+        });
+      }
+      return next;
+    });
+  };
+
+  const setDbMode = async (mode: DbMode) => {
+    setDbModeState(mode);
+    localStorage.setItem(DB_MODE_KEY, mode);
+  };
+
+  const migrateLocalToFirebase = async () => {
+    setIsLoading(true);
+    try {
+      const localDataStr = localStorage.getItem(STORAGE_KEY);
+      const localData = localDataStr ? JSON.parse(localDataStr) : { invoices: [], customers: [] };
+      await setDoc(doc(db, "appData", "main"), localData);
+      alert("Migrasi dari Local ke Firebase berhasil!");
+    } catch (e) {
+      console.error(e);
+      alert("Gagal migrasi ke Firebase.");
+    }
+    setIsLoading(false);
+  };
+
+  const migrateFirebaseToLocal = async () => {
+    setIsLoading(true);
+    try {
+      const docSnap = await getDoc(doc(db, "appData", "main"));
+      if (docSnap.exists()) {
+        const remoteData = docSnap.data();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteData));
+        if (dbMode === "LOCAL") {
+          setData({
+             invoices: remoteData.invoices || [],
+             customers: remoteData.customers || []
+          });
+        }
+        alert("Migrasi dari Firebase ke Local berhasil!");
+      } else {
+        alert("Tidak ada data di Firebase untuk di-migrate.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Gagal migrasi ke Local.");
+    }
+    setIsLoading(false);
+  };
+
+  const resetData = () => {
+    mutateData(() => INITIAL_DATA);
+  };
 
   const addInvoice = (
     invoiceNumber: string,
@@ -50,7 +158,7 @@ export function useAppStore() {
       payments: [],
       status: "UNPAID",
     };
-    setData((prev) => ({ ...prev, invoices: [...prev.invoices, newInvoice] }));
+    mutateData((prev) => ({ ...prev, invoices: [...prev.invoices, newInvoice] }));
   };
 
   const addInvoices = (
@@ -62,14 +170,14 @@ export function useAppStore() {
       payments: [],
       status: "UNPAID",
     }));
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       invoices: [...prev.invoices, ...newInvoices],
     }));
   };
 
   const addBulkPayments = (payments: {invoiceId: string, amount: number, date: string}[]) => {
-    setData((prev) => {
+    mutateData((prev) => {
       let nextInvoices = [...prev.invoices];
       for (const p of payments) {
         nextInvoices = nextInvoices.map((inv) => {
@@ -99,27 +207,23 @@ export function useAppStore() {
   };
 
   const addPayment = (invoiceId: string, amount: number, date: string) => {
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       invoices: prev.invoices.map((inv) => {
         if (inv.id !== invoiceId) return inv;
-
         const newPayment: Payment = {
           id: uuidv4(),
           date,
           amount,
         };
-
         const updatedPayments = [...inv.payments, newPayment];
         const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
-
         let status: Invoice["status"] = "UNPAID";
         if (totalPaid >= inv.totalAmount) {
           status = "PAID";
         } else if (totalPaid > 0) {
           status = "PARTIAL";
         }
-
         return {
           ...inv,
           payments: updatedPayments,
@@ -137,11 +241,10 @@ export function useAppStore() {
     dueDate: string,
     totalAmount: number
   ) => {
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       invoices: prev.invoices.map((inv) => {
         if (inv.id !== invoiceId) return inv;
-
         const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
         let status: Invoice["status"] = "UNPAID";
         if (totalPaid >= totalAmount) {
@@ -149,7 +252,6 @@ export function useAppStore() {
         } else if (totalPaid > 0) {
           status = "PARTIAL";
         }
-
         return {
           ...inv,
           invoiceNumber,
@@ -164,7 +266,7 @@ export function useAppStore() {
   };
 
   const deleteInvoice = (invoiceId: string) => {
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       invoices: prev.invoices.filter((inv) => inv.id !== invoiceId),
     }));
@@ -178,11 +280,11 @@ export function useAppStore() {
       address,
       exportSeparateSheet,
     };
-    setData((prev) => ({ ...prev, customers: [...prev.customers, newCustomer] }));
+    mutateData((prev) => ({ ...prev, customers: [...prev.customers, newCustomer] }));
   };
 
   const updateCustomer = (id: string, name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => {
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       customers: prev.customers.map((c) =>
         c.id === id ? { ...c, name, phone, address, exportSeparateSheet } : c
@@ -191,7 +293,7 @@ export function useAppStore() {
   };
 
   const deleteCustomer = (id: string) => {
-    setData((prev) => ({
+    mutateData((prev) => ({
       ...prev,
       customers: prev.customers.filter((c) => c.id !== id),
     }));
@@ -201,10 +303,10 @@ export function useAppStore() {
     try {
       const parsed = JSON.parse(jsonData);
       if (parsed && Array.isArray(parsed.invoices)) {
-        setData({
+        mutateData(() => ({
           invoices: parsed.invoices,
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
-        });
+        }));
         return true;
       }
     } catch (e) {
@@ -218,6 +320,12 @@ export function useAppStore() {
   return {
     invoices: data.invoices,
     customers: data.customers,
+    dbMode,
+    isLoading,
+    setDbMode,
+    migrateLocalToFirebase,
+    migrateFirebaseToLocal,
+    resetData,
     addInvoice,
     addInvoices,
     editInvoice,

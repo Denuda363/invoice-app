@@ -28,6 +28,8 @@ interface InvoiceGroup {
 }
 
 export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFakturProps) {
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  
   const createEmptyRow = (): InvoiceRow => {
     const today = new Date();
     return {
@@ -126,6 +128,8 @@ export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFaktur
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setImportErrors([]);
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -135,38 +139,73 @@ export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFaktur
         const jsonData = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
 
         // Skip header row
-        const rows = jsonData.slice(1).filter((r) => r.length > 0);
+        const rows = jsonData.slice(1);
         
-        // Group by customer
+        const errors: string[] = [];
         const groupsByCustomer: Record<string, InvoiceRow[]> = {};
         
-        rows.forEach((row) => {
-          const custName = row[0] || "";
-          const invNum = row[1] || "";
-          // Handle excel date formatting if necessary, or just expect yyyy-MM-dd text
-          let dateStr = row[2] || format(new Date(), "yyyy-MM-dd");
-          // If it's a number (excel date serial), convert it
-          if (typeof dateStr === "number") {
+        rows.forEach((row, index) => {
+          if (!row || row.length === 0) return; // skip completely empty rows
+
+          const rowIndex = index + 2; // row 1 is header, so data starts at row 2 in Excel
+          const custName = (row[0] || "").toString().trim();
+          const invNum = (row[1] || "").toString().trim();
+          
+          let dateStr = row[2];
+          if (dateStr === undefined || dateStr === null || dateStr === "") {
+             dateStr = format(new Date(), "yyyy-MM-dd");
+          } else if (typeof dateStr === "number") {
              const d = new Date((dateStr - (25567 + 1)) * 86400 * 1000);
              dateStr = format(d, "yyyy-MM-dd");
+          } else {
+             // Try to parse string date just in case
+             dateStr = String(dateStr);
           }
           
-          const term = parseInt(row[3] || "30", 10);
-          const amount = row[4] || "";
+          let termRaw = row[3];
+          let term = 30;
+          if (termRaw !== undefined && termRaw !== null && termRaw !== "") {
+             term = parseInt(String(termRaw), 10);
+             if (isNaN(term)) term = 30;
+          }
 
-          if (!groupsByCustomer[custName]) {
-            groupsByCustomer[custName] = [];
+          const amountRaw = row[4];
+          let amount = "";
+          if (amountRaw !== undefined && amountRaw !== null && amountRaw !== "") {
+             amount = amountRaw.toString().trim();
           }
+
+          let rowHasErrors = false;
+          let rowErrors: string[] = [];
           
-          groupsByCustomer[custName].push({
-            id: crypto.randomUUID(),
-            invoiceNumber: invNum,
-            date: dateStr,
-            termDays: term,
-            dueDate: format(addDays(new Date(dateStr), term), "yyyy-MM-dd"),
-            totalAmount: amount.toString(),
-          });
+          if (!custName) rowErrors.push("Konsumen kosong");
+          if (!invNum) rowErrors.push("No Faktur kosong");
+          if (!amount) rowErrors.push("Total Tagihan kosong");
+          else if (isNaN(parseFloat(amount))) rowErrors.push("Total Tagihan bukan angka");
+
+          if (rowErrors.length > 0) {
+            errors.push(`Baris ${rowIndex}: ${rowErrors.join(", ")}`);
+            rowHasErrors = true;
+          }
+
+          if (!rowHasErrors) {
+            if (!groupsByCustomer[custName]) {
+              groupsByCustomer[custName] = [];
+            }
+            groupsByCustomer[custName].push({
+              id: crypto.randomUUID(),
+              invoiceNumber: invNum,
+              date: dateStr,
+              termDays: term,
+              dueDate: format(addDays(new Date(dateStr), term), "yyyy-MM-dd"),
+              totalAmount: amount.toString(),
+            });
+          }
         });
+
+        if (errors.length > 0) {
+           setImportErrors(errors);
+        }
 
         const newGroups = Object.entries(groupsByCustomer).map(([custName, custRows]) => ({
           id: crypto.randomUUID(),
@@ -175,8 +214,11 @@ export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFaktur
         }));
 
         if (newGroups.length > 0) {
-          setGroups(newGroups);
-        } else {
+          setGroups((prev) => {
+             const isEmpty = prev.length === 1 && prev[0].customerName === "" && prev[0].rows.length === 2 && prev[0].rows[0].invoiceNumber === "";
+             return isEmpty ? newGroups : [...prev, ...newGroups];
+          });
+        } else if (errors.length === 0) {
           alert("Tidak ada data valid di file Excel.");
         }
       } catch (err) {
@@ -260,6 +302,17 @@ export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFaktur
           </div>
         </div>
       </div>
+
+      {importErrors.length > 0 && (
+        <div className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200 text-sm text-red-700">
+          <p className="font-semibold mb-2">Terdapat {importErrors.length} kesalahan saat import data:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            {importErrors.map((err, i) => (
+              <li key={i}>{err}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="space-y-8">

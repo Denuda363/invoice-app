@@ -1,13 +1,27 @@
 import React, { useRef } from "react";
-import { Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, Database, Cloud, RefreshCcw, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
+import { DbMode } from "../types";
 
 interface SettingsProps {
   onRestore: (jsonData: string) => boolean;
   getBackupData: () => string;
+  dbMode: DbMode;
+  setDbMode: (mode: DbMode) => void;
+  migrateLocalToFirebase: () => void;
+  migrateFirebaseToLocal: () => void;
+  resetData: () => void;
 }
 
-export function Settings({ onRestore, getBackupData }: SettingsProps) {
+export function Settings({ 
+  onRestore, 
+  getBackupData, 
+  dbMode, 
+  setDbMode, 
+  migrateLocalToFirebase, 
+  migrateFirebaseToLocal,
+  resetData 
+}: SettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputExcelRef = useRef<HTMLInputElement>(null);
 
@@ -77,7 +91,6 @@ export function Settings({ onRestore, getBackupData }: SettingsProps) {
           }
         }
       }
-      // Reset input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -153,7 +166,6 @@ export function Settings({ onRestore, getBackupData }: SettingsProps) {
         alert("Terjadi kesalahan saat membaca file Excel.");
       }
       
-      // Reset input
       if (fileInputExcelRef.current) {
         fileInputExcelRef.current.value = "";
       }
@@ -161,11 +173,84 @@ export function Settings({ onRestore, getBackupData }: SettingsProps) {
     reader.readAsArrayBuffer(file);
   };
 
+  const handleResetData = () => {
+    if (window.confirm("PERINGATAN: Semua data faktur, pembayaran, dan konsumen akan dihapus permanen. Lanjutkan?")) {
+      resetData();
+      alert("Data berhasil direset.");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Pengaturan</h2>
-        <p className="mt-1 text-sm text-gray-500">Kelola preferensi dan data aplikasi Anda.</p>
+        <p className="mt-1 text-sm text-gray-500">Kelola preferensi, database, dan data aplikasi Anda.</p>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800">Pengaturan Database</h3>
+        <p className="mb-6 text-sm text-gray-600">
+          Pilih lokasi penyimpanan data Anda. Mode Local menyimpan data di perangkat ini. Mode Firebase menyimpan data secara online.
+        </p>
+
+        <div className="mb-6 flex gap-4">
+          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${dbMode === 'LOCAL' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+            <input 
+              type="radio" 
+              name="dbMode" 
+              className="sr-only" 
+              checked={dbMode === 'LOCAL'}
+              onChange={() => setDbMode('LOCAL')}
+            />
+            <Database className={dbMode === 'LOCAL' ? 'text-blue-600' : 'text-gray-400'} size={24} />
+            <div>
+              <p className={`font-semibold ${dbMode === 'LOCAL' ? 'text-blue-700' : 'text-gray-700'}`}>Local Storage</p>
+              <p className="text-xs text-gray-500">Simpan di browser ini</p>
+            </div>
+          </label>
+
+          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${dbMode === 'FIREBASE' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+            <input 
+              type="radio" 
+              name="dbMode" 
+              className="sr-only" 
+              checked={dbMode === 'FIREBASE'}
+              onChange={() => setDbMode('FIREBASE')}
+            />
+            <Cloud className={dbMode === 'FIREBASE' ? 'text-blue-600' : 'text-gray-400'} size={24} />
+            <div>
+              <p className={`font-semibold ${dbMode === 'FIREBASE' ? 'text-blue-700' : 'text-gray-700'}`}>Firebase Cloud</p>
+              <p className="text-xs text-gray-500">Simpan online</p>
+            </div>
+          </label>
+        </div>
+
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">Migrasi Data</h4>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button
+            onClick={() => {
+              if (window.confirm("Migrasi ke Firebase akan menimpa data di cloud dengan data lokal saat ini. Lanjutkan?")) {
+                migrateLocalToFirebase();
+              }
+            }}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Cloud size={16} />
+            Local ➔ Firebase
+          </button>
+          
+          <button
+            onClick={() => {
+              if (window.confirm("Migrasi ke Local akan menimpa data lokal dengan data dari cloud. Lanjutkan?")) {
+                migrateFirebaseToLocal();
+              }
+            }}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Database size={16} />
+            Firebase ➔ Local
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -235,6 +320,21 @@ export function Settings({ onRestore, getBackupData }: SettingsProps) {
           </div>
         </div>
       </div>
+
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">
+        <h3 className="mb-2 text-lg font-semibold text-red-800">Danger Zone</h3>
+        <p className="mb-4 text-sm text-red-600">
+          Tindakan di bawah ini tidak dapat dibatalkan. Pastikan Anda sudah membackup data Anda sebelum melakukan reset.
+        </p>
+        <button
+          onClick={handleResetData}
+          className="flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white hover:bg-red-700"
+        >
+          <Trash2 size={18} />
+          Reset Semua Data
+        </button>
+      </div>
+
     </div>
   );
 }
