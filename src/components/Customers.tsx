@@ -4,15 +4,15 @@ import { Users, Plus, Edit2, Trash2, X } from "lucide-react";
 
 interface CustomersProps {
   customers: Customer[];
-  onAdd: (name: string, phone?: string, address?: string) => void;
-  onUpdate: (id: string, name: string, phone?: string, address?: string) => void;
+  onAdd: (name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => void;
+  onUpdate: (id: string, name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => void;
   onDelete: (id: string) => void;
 }
 
 export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [formData, setFormData] = useState({ name: "", phone: "", address: "" });
+  const [formData, setFormData] = useState({ name: "", phone: "", address: "", exportSeparateSheet: false });
 
   const openModal = (customer?: Customer) => {
     if (customer) {
@@ -21,10 +21,11 @@ export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersPro
         name: customer.name,
         phone: customer.phone || "",
         address: customer.address || "",
+        exportSeparateSheet: customer.exportSeparateSheet || false,
       });
     } else {
       setEditingCustomer(null);
-      setFormData({ name: "", phone: "", address: "" });
+      setFormData({ name: "", phone: "", address: "", exportSeparateSheet: false });
     }
     setIsModalOpen(true);
   };
@@ -39,9 +40,9 @@ export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersPro
     if (!formData.name.trim()) return;
 
     if (editingCustomer) {
-      onUpdate(editingCustomer.id, formData.name, formData.phone, formData.address);
+      onUpdate(editingCustomer.id, formData.name, formData.phone, formData.address, formData.exportSeparateSheet);
     } else {
-      onAdd(formData.name, formData.phone, formData.address);
+      onAdd(formData.name, formData.phone, formData.address, formData.exportSeparateSheet);
     }
     closeModal();
   };
@@ -159,6 +160,20 @@ export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersPro
                   className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="exportSeparateSheet"
+                  checked={formData.exportSeparateSheet}
+                  onChange={(e) => setFormData({ ...formData, exportSeparateSheet: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="exportSeparateSheet" className="text-sm font-medium text-gray-700">
+                  Rekap di sheet terpisah saat export laporan
+                </label>
+              </div>
+
               <div className="mt-6 flex justify-end gap-3 pt-4">
                 <button
                   type="button"

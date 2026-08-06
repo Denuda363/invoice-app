@@ -170,21 +170,22 @@ export function useAppStore() {
     }));
   };
 
-  const addCustomer = (name: string, phone?: string, address?: string) => {
+  const addCustomer = (name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => {
     const newCustomer: Customer = {
       id: uuidv4(),
       name,
       phone,
       address,
+      exportSeparateSheet,
     };
     setData((prev) => ({ ...prev, customers: [...prev.customers, newCustomer] }));
   };
 
-  const updateCustomer = (id: string, name: string, phone?: string, address?: string) => {
+  const updateCustomer = (id: string, name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => {
     setData((prev) => ({
       ...prev,
       customers: prev.customers.map((c) =>
-        c.id === id ? { ...c, name, phone, address } : c
+        c.id === id ? { ...c, name, phone, address, exportSeparateSheet } : c
       ),
     }));
   };

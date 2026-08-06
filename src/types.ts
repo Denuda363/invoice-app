@@ -9,6 +9,7 @@ export interface Customer {
   name: string;
   phone?: string;
   address?: string;
+  exportSeparateSheet?: boolean;
 }
 
 export interface Invoice {

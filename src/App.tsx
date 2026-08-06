@@ -145,6 +145,7 @@ export default function App() {
           {view === "REPORTS" && (
             <Reports
               invoices={store.invoices}
+              customers={store.customers}
               onPayFaktur={(invoice) => setPaymentInvoice(invoice)}
               onBulkPay={(payments) => store.addBulkPayments(payments)}
             />

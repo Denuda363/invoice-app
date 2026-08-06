@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Invoice } from "../types";
+import { Invoice, Customer } from "../types";
 import { formatCurrency, cn } from "../utils";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
@@ -10,11 +10,12 @@ import "jspdf-autotable";
 
 interface ReportsProps {
   invoices: Invoice[];
+  customers?: Customer[];
   onPayFaktur?: (invoice: Invoice) => void;
   onBulkPay?: (payments: {invoiceId: string, amount: number, date: string}[]) => void;
 }
 
-export function Reports({ invoices, onPayFaktur, onBulkPay }: ReportsProps) {
+export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: ReportsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("UNPAID");
   const [dueDateFilter, setDueDateFilter] = useState("ALL");
@@ -199,6 +200,85 @@ export function Reports({ invoices, onPayFaktur, onBulkPay }: ReportsProps) {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Laporan Faktur");
+
+    // Add separate sheets for customers configured for exportSeparateSheet
+    customers.forEach((customer) => {
+      if (customer.exportSeparateSheet) {
+        const customerInvoices = filteredInvoices.filter(inv => inv.customerName === customer.name);
+        
+        if (customerInvoices.length > 0) {
+          const custAoa: any[][] = [
+            ["NO", "CUSTOMER", "TGL FAKTUR", "NO FAKTUR", "NOMINAL", "BAYAR", "SISA", "TGL JATUH TEMPO", "", "", "keterangan lunas"],
+            ["", "", "", "", "", "", "", "TGL", "BULAN", "TAHUN", ""],
+          ];
+
+          customerInvoices.forEach((inv, index) => {
+            const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+            const remaining = inv.totalAmount - totalPaid;
+            
+            const invDate = new Date(inv.date);
+            const dueDate = new Date(inv.dueDate);
+
+            custAoa.push([
+              index + 1,
+              inv.customerName,
+              format(invDate, "dd-MMM-yy", { locale: id }).toLowerCase(),
+              inv.invoiceNumber,
+              formatRp(inv.totalAmount),
+              totalPaid > 0 ? formatRp(totalPaid) : "",
+              formatRp(remaining),
+              format(dueDate, "dd", { locale: id }),
+              format(dueDate, "MMMM", { locale: id }).toUpperCase(),
+              format(dueDate, "yyyy", { locale: id }),
+              inv.status === "PAID" || remaining <= 0 ? "Lunas" : ""
+            ]);
+          });
+
+          const custWs = XLSX.utils.aoa_to_sheet(custAoa);
+          
+          for (let R = 0; R < custAoa.length; ++R) {
+            const isHeader = R === 0 || R === 1;
+            const isPaid = !isHeader && custAoa[R][10] === "Lunas";
+            
+            for (let C = 0; C < custAoa[R].length; ++C) {
+              const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+              if (custWs[cell_ref]) {
+                if (isHeader) {
+                  custWs[cell_ref].s = headerStyle;
+                } else if (isPaid) {
+                  custWs[cell_ref].s = paidStyle;
+                }
+              }
+            }
+          }
+
+          custWs["!merges"] = [
+            { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
+            { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
+            { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } },
+            { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } },
+            { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } },
+            { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } },
+            { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } },
+            { s: { r: 0, c: 7 }, e: { r: 0, c: 9 } },
+            { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } },
+          ];
+
+          custWs["!cols"] = [
+            { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+            { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 5 },
+            { wch: 12 }, { wch: 8 }, { wch: 20 },
+          ];
+
+          // Use a safe sheet name (max 31 chars, no invalid chars)
+          let safeSheetName = customer.name.replace(/[\\/?*\[\]]/g, '').substring(0, 31);
+          if (!safeSheetName) safeSheetName = `Customer_${customer.id.substring(0, 5)}`;
+          
+          XLSX.utils.book_append_sheet(wb, custWs, safeSheetName);
+        }
+      }
+    });
+
     XLSX.writeFile(wb, "Laporan_Jatuh_Tempo.xlsx");
   };
 
