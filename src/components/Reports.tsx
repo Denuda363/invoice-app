@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Invoice, Customer } from "../types";
 import { formatCurrency, cn } from "../utils";
 import { format, differenceInDays } from "date-fns";
 import { id } from "date-fns/locale";
-import { FileDown, Search, Filter, CheckSquare, Square, Check } from "lucide-react";
+import { FileDown, Search, Filter, CheckSquare, Square, Check, Upload } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -21,6 +21,7 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
   const [dueDateFilter, setDueDateFilter] = useState("ALL");
   const [customAgeFilter, setCustomAgeFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   let filteredInvoices = invoices;
 
@@ -124,6 +125,94 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
         setSelectedIds(new Set());
       }
     }
+  };
+
+  const downloadPaymentTemplate = () => {
+    const aoa = [
+      ["NO FAKTUR", "NOMINAL BAYAR", "TANGGAL BAYAR"],
+      ["INV-1001", "500000", format(new Date(), "yyyy-MM-dd")],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template_Pembayaran");
+    XLSX.writeFile(wb, "Template_Import_Pembayaran.xlsx");
+  };
+
+  const handleImportPayment = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const wb = XLSX.read(data, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+
+        // Skip header row
+        const rows = jsonData.slice(1);
+        
+        const payments: { invoiceId: string, amount: number, date: string }[] = [];
+        const errors: string[] = [];
+
+        rows.forEach((row, index) => {
+          if (!row || row.length === 0) return;
+
+          const invNum = (row[0] || "").toString().trim();
+          let amountStr = row[1];
+          let dateStr = row[2];
+
+          if (!invNum) return;
+
+          const invoice = invoices.find(inv => inv.invoiceNumber === invNum);
+          if (!invoice) {
+             errors.push(`Baris ${index + 2}: Faktur ${invNum} tidak ditemukan`);
+             return;
+          }
+
+          let amount = parseFloat(amountStr);
+          if (isNaN(amount) || amount <= 0) {
+             errors.push(`Baris ${index + 2}: Nominal bayar tidak valid untuk Faktur ${invNum}`);
+             return;
+          }
+
+          if (dateStr === undefined || dateStr === null || dateStr === "") {
+             dateStr = format(new Date(), "yyyy-MM-dd");
+          } else if (typeof dateStr === "number") {
+             const d = new Date((dateStr - (25567 + 1)) * 86400 * 1000);
+             dateStr = format(d, "yyyy-MM-dd");
+          } else {
+             dateStr = String(dateStr);
+          }
+
+          payments.push({
+             invoiceId: invoice.id,
+             amount,
+             date: dateStr
+          });
+        });
+
+        if (errors.length > 0) {
+           alert("Terdapat error saat import:\n" + errors.join("\n"));
+        } else if (payments.length > 0 && onBulkPay) {
+           if (window.confirm(`Apakah Anda yakin ingin memproses ${payments.length} pembayaran?`)) {
+              onBulkPay(payments);
+              alert("Pembayaran berhasil diimpor.");
+           }
+        } else {
+           alert("Tidak ada data pembayaran yang valid.");
+        }
+      } catch (err) {
+        console.error("Error reading file", err);
+        alert("Gagal membaca file Excel.");
+      }
+      
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   const exportExcel = () => {
@@ -341,6 +430,29 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             <FileDown size={18} />
             Export PDF
           </button>
+          <button
+            onClick={downloadPaymentTemplate}
+            className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+          >
+            <FileDown size={18} />
+            Template Pembayaran
+          </button>
+          <div>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              ref={fileInputRef}
+              onChange={handleImportPayment}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              <Upload size={18} />
+              Import Pembayaran
+            </button>
+          </div>
           {selectedIds.size > 0 && (
             <button
               onClick={handleBulkPayClick}
@@ -415,10 +527,16 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             Tidak ada faktur yang belum lunas.
           </div>
         ) : (
-          Object.entries(groupedInvoices).map(([customerName, customerInvoices]) => (
+          Object.entries(groupedInvoices).map(([customerName, customerInvoices]) => {
+            const groupTotal = customerInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
+            const groupRemaining = customerInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.payments.reduce((s, p) => s + p.amount, 0)), 0);
+            return (
             <div key={customerName} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-50 px-4 py-3 border-b border-gray-200 gap-2">
                 <h3 className="font-semibold text-gray-800">{customerName}</h3>
+                <div className="text-sm font-semibold text-gray-700">
+                  Total Tagihan: {formatCurrency(groupTotal)} <span className="mx-2 text-gray-300">|</span> Sisa: <span className="text-blue-700">{formatCurrency(groupRemaining)}</span>
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-max text-left text-sm">
@@ -515,7 +633,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
                 </table>
               </div>
             </div>
-          ))
+          );
+        })
         )}
       </div>
     </div>
