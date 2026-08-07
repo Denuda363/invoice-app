@@ -57,6 +57,15 @@ export function InvoiceHistory({
       alert("Harap isi semua bidang");
       return;
     }
+
+    const duplicate = invoices.find(
+      (inv) => inv.id !== id && inv.invoiceNumber.toLowerCase() === editInvoiceNumber.toLowerCase()
+    );
+    if (duplicate) {
+      alert(`No faktur ${editInvoiceNumber} sudah digunakan.`);
+      return;
+    }
+
     onEdit(
       id,
       editInvoiceNumber,

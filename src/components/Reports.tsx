@@ -271,9 +271,39 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       border: borderStyle
     };
 
+    const overdueStyle = {
+      fill: { fgColor: { rgb: "FECACA" } }, // Tailwind red-200
+      border: borderStyle
+    };
+
+    const warningStyle = {
+      fill: { fgColor: { rgb: "FED7AA" } }, // Tailwind orange-200
+      border: borderStyle
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     for (let R = 0; R < aoa.length; ++R) {
       const isHeader = R === 0 || R === 1;
       const isPaid = !isHeader && aoa[R][10] === "Lunas";
+      
+      let isOverdue = false;
+      let isWarning = false;
+
+      if (!isHeader && !isPaid) {
+        const inv = filteredInvoices[R - 2];
+        if (inv) {
+          const dueDate = new Date(inv.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+          const diffDays = differenceInDays(dueDate, today);
+          if (diffDays < 0) {
+            isOverdue = true;
+          } else if (diffDays <= 3) {
+            isWarning = true;
+          }
+        }
+      }
       
       for (let C = 0; C < aoa[R].length; ++C) {
         const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
@@ -282,6 +312,10 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             ws[cell_ref].s = headerStyle;
           } else if (isPaid) {
             ws[cell_ref].s = paidStyle;
+          } else if (isOverdue) {
+            ws[cell_ref].s = overdueStyle;
+          } else if (isWarning) {
+            ws[cell_ref].s = warningStyle;
           } else {
             ws[cell_ref].s = regularStyle;
           }
@@ -350,6 +384,23 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             const isHeader = R === 0 || R === 1;
             const isPaid = !isHeader && custAoa[R][10] === "Lunas";
             
+            let isOverdue = false;
+            let isWarning = false;
+
+            if (!isHeader && !isPaid) {
+              const inv = customerInvoices[R - 2];
+              if (inv) {
+                const dueDate = new Date(inv.dueDate);
+                dueDate.setHours(0, 0, 0, 0);
+                const diffDays = differenceInDays(dueDate, today);
+                if (diffDays < 0) {
+                  isOverdue = true;
+                } else if (diffDays <= 3) {
+                  isWarning = true;
+                }
+              }
+            }
+            
             for (let C = 0; C < custAoa[R].length; ++C) {
               const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
               if (custWs[cell_ref]) {
@@ -357,6 +408,10 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
                   custWs[cell_ref].s = headerStyle;
                 } else if (isPaid) {
                   custWs[cell_ref].s = paidStyle;
+                } else if (isOverdue) {
+                  custWs[cell_ref].s = overdueStyle;
+                } else if (isWarning) {
+                  custWs[cell_ref].s = warningStyle;
                 } else {
                   custWs[cell_ref].s = regularStyle;
                 }

@@ -125,6 +125,7 @@ export default function App() {
           {view === "BULK_INPUT_INVOICE" && (
             <BulkInputFaktur
               customers={store.customers}
+              existingInvoiceNumbers={store.invoices.map(i => i.invoiceNumber.toLowerCase())}
               onSave={(invoices) => {
                 store.addInvoices(invoices);
                 setView("DASHBOARD");

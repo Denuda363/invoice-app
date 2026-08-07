@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 
 interface BulkInputFakturProps {
   customers: Customer[];
+  existingInvoiceNumbers: string[];
   onSave: (invoices: Omit<Invoice, "id" | "payments" | "status">[]) => void;
   onCancel: () => void;
 }
@@ -27,7 +28,7 @@ interface InvoiceGroup {
   rows: InvoiceRow[];
 }
 
-export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFakturProps) {
+export function BulkInputFaktur({ customers, existingInvoiceNumbers, onSave, onCancel }: BulkInputFakturProps) {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   
   const createEmptyRow = (): InvoiceRow => {
@@ -263,6 +264,20 @@ export function BulkInputFaktur({ customers, onSave, onCancel }: BulkInputFaktur
     if (allValidRows.some((inv) => inv.totalAmount <= 0)) {
       alert("Terdapat tagihan dengan nilai tidak valid.");
       return;
+    }
+
+    const newInvoiceNumbers = new Set<string>();
+    for (const inv of allValidRows) {
+      const invNum = inv.invoiceNumber.toLowerCase();
+      if (existingInvoiceNumbers.includes(invNum)) {
+        alert(`No faktur ${inv.invoiceNumber} sudah ada di sistem. Mohon periksa kembali.`);
+        return;
+      }
+      if (newInvoiceNumbers.has(invNum)) {
+        alert(`No faktur ${inv.invoiceNumber} terduplikasi dalam input Anda. Mohon periksa kembali.`);
+        return;
+      }
+      newInvoiceNumbers.add(invNum);
     }
 
     onSave(allValidRows);

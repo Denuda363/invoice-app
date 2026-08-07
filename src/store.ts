@@ -10,6 +10,20 @@ const DB_MODE_KEY = "faktur_app_db_mode";
 
 const INITIAL_DATA: AppData = { invoices: [], customers: [] };
 
+const deduplicateInvoices = (invoices: Invoice[]): Invoice[] => {
+  const seen = new Set<string>();
+  return invoices.map((inv) => {
+    let newNumber = inv.invoiceNumber;
+    let counter = 1;
+    while (seen.has(newNumber.toLowerCase())) {
+      newNumber = `${inv.invoiceNumber}-${counter}`;
+      counter++;
+    }
+    seen.add(newNumber.toLowerCase());
+    return { ...inv, invoiceNumber: newNumber };
+  });
+};
+
 export function useAppStore() {
   const [dbMode, setDbModeState] = useState<DbMode>(() => {
     return (localStorage.getItem(DB_MODE_KEY) as DbMode) || "LOCAL";
@@ -19,7 +33,11 @@ export function useAppStore() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved) as AppData;
+        if (parsed.invoices) {
+          parsed.invoices = deduplicateInvoices(parsed.invoices);
+        }
+        return parsed;
       } catch (e) {
         console.error("Failed to parse data from local storage", e);
       }
@@ -29,7 +47,7 @@ export function useAppStore() {
       try {
         const parsed = JSON.parse(legacySaved);
         if (Array.isArray(parsed)) {
-          return { invoices: parsed, customers: [] };
+          return { invoices: deduplicateInvoices(parsed), customers: [] };
         }
       } catch (e) {
         console.error("Failed to parse legacy data", e);
@@ -51,7 +69,7 @@ export function useAppStore() {
         if (docSnap.exists()) {
           const remoteData = docSnap.data() as AppData;
           setData({
-            invoices: remoteData.invoices || [],
+            invoices: deduplicateInvoices(remoteData.invoices || []),
             customers: remoteData.customers || []
           });
         }
@@ -122,7 +140,7 @@ export function useAppStore() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteData));
         if (dbMode === "LOCAL") {
           setData({
-             invoices: remoteData.invoices || [],
+             invoices: deduplicateInvoices(remoteData.invoices || []),
              customers: remoteData.customers || []
           });
         }
@@ -373,7 +391,7 @@ export function useAppStore() {
       const parsed = JSON.parse(jsonData);
       if (parsed && Array.isArray(parsed.invoices)) {
         mutateData(() => ({
-          invoices: parsed.invoices,
+          invoices: deduplicateInvoices(parsed.invoices),
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
         }));
         return true;
