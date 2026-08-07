@@ -1,5 +1,5 @@
-import React, { useRef } from "react";
-import { Download, Upload, FileSpreadsheet, Database, Cloud, RefreshCcw, Trash2 } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { Download, Upload, FileSpreadsheet, Database, Cloud, RefreshCcw, Trash2, Save } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { DbMode } from "../types";
 
@@ -24,6 +24,17 @@ export function Settings({
 }: SettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputExcelRef = useRef<HTMLInputElement>(null);
+  
+  const [localDbMode, setLocalDbMode] = useState<DbMode>(dbMode);
+
+  useEffect(() => {
+    setLocalDbMode(dbMode);
+  }, [dbMode]);
+
+  const handleSaveDbMode = () => {
+    setDbMode(localDbMode);
+    alert("Pengaturan database berhasil disimpan.");
+  };
 
   const handleBackup = () => {
     const data = getBackupData();
@@ -194,35 +205,50 @@ export function Settings({
         </p>
 
         <div className="mb-6 flex gap-4">
-          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${dbMode === 'LOCAL' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${localDbMode === 'LOCAL' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
             <input 
               type="radio" 
               name="dbMode" 
               className="sr-only" 
-              checked={dbMode === 'LOCAL'}
-              onChange={() => setDbMode('LOCAL')}
+              checked={localDbMode === 'LOCAL'}
+              onChange={() => setLocalDbMode('LOCAL')}
             />
-            <Database className={dbMode === 'LOCAL' ? 'text-blue-600' : 'text-gray-400'} size={24} />
+            <Database className={localDbMode === 'LOCAL' ? 'text-blue-600' : 'text-gray-400'} size={24} />
             <div>
-              <p className={`font-semibold ${dbMode === 'LOCAL' ? 'text-blue-700' : 'text-gray-700'}`}>Local Storage</p>
+              <p className={`font-semibold ${localDbMode === 'LOCAL' ? 'text-blue-700' : 'text-gray-700'}`}>Local Storage</p>
               <p className="text-xs text-gray-500">Simpan di browser ini</p>
             </div>
           </label>
 
-          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${dbMode === 'FIREBASE' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+          <label className={`flex-1 flex cursor-pointer items-center justify-center gap-3 rounded-xl border-2 p-4 transition-all ${localDbMode === 'FIREBASE' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
             <input 
               type="radio" 
               name="dbMode" 
               className="sr-only" 
-              checked={dbMode === 'FIREBASE'}
-              onChange={() => setDbMode('FIREBASE')}
+              checked={localDbMode === 'FIREBASE'}
+              onChange={() => setLocalDbMode('FIREBASE')}
             />
-            <Cloud className={dbMode === 'FIREBASE' ? 'text-blue-600' : 'text-gray-400'} size={24} />
+            <Cloud className={localDbMode === 'FIREBASE' ? 'text-blue-600' : 'text-gray-400'} size={24} />
             <div>
-              <p className={`font-semibold ${dbMode === 'FIREBASE' ? 'text-blue-700' : 'text-gray-700'}`}>Firebase Cloud</p>
+              <p className={`font-semibold ${localDbMode === 'FIREBASE' ? 'text-blue-700' : 'text-gray-700'}`}>Firebase Cloud</p>
               <p className="text-xs text-gray-500">Simpan online</p>
             </div>
           </label>
+        </div>
+
+        <div className="mb-8 flex justify-end">
+          <button
+            onClick={handleSaveDbMode}
+            disabled={localDbMode === dbMode}
+            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-colors ${
+              localDbMode === dbMode 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <Save size={18} />
+            Simpan Pengaturan
+          </button>
         </div>
 
         <h4 className="text-sm font-semibold text-gray-700 mb-3">Migrasi Data</h4>
