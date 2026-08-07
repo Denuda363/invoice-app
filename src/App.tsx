@@ -137,8 +137,10 @@ export default function App() {
             <Customers
               customers={store.customers}
               onAdd={store.addCustomer}
+              onAddBulk={store.addCustomers}
               onUpdate={store.updateCustomer}
               onDelete={store.deleteCustomer}
+              onSyncFromInvoices={store.syncCustomersFromInvoices}
             />
           )}
 

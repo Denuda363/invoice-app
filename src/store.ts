@@ -158,7 +158,17 @@ export function useAppStore() {
       payments: [],
       status: "UNPAID",
     };
-    mutateData((prev) => ({ ...prev, invoices: [...prev.invoices, newInvoice] }));
+    mutateData((prev) => {
+      const nextCustomers = [...prev.customers];
+      if (!nextCustomers.some((c) => c.name.toLowerCase() === customerName.toLowerCase())) {
+        nextCustomers.push({
+          id: uuidv4(),
+          name: customerName,
+          exportSeparateSheet: false,
+        });
+      }
+      return { ...prev, invoices: [...prev.invoices, newInvoice], customers: nextCustomers };
+    });
   };
 
   const addInvoices = (
@@ -170,10 +180,26 @@ export function useAppStore() {
       payments: [],
       status: "UNPAID",
     }));
-    mutateData((prev) => ({
-      ...prev,
-      invoices: [...prev.invoices, ...newInvoices],
-    }));
+    mutateData((prev) => {
+      const nextCustomers = [...prev.customers];
+      const newCustomerNames = new Set(newInvoices.map((inv) => inv.customerName));
+      
+      newCustomerNames.forEach((name) => {
+        if (!nextCustomers.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+          nextCustomers.push({
+            id: uuidv4(),
+            name: name,
+            exportSeparateSheet: false,
+          });
+        }
+      });
+
+      return {
+        ...prev,
+        invoices: [...prev.invoices, ...newInvoices],
+        customers: nextCustomers,
+      };
+    });
   };
 
   const addBulkPayments = (payments: {invoiceId: string, amount: number, date: string}[]) => {
@@ -283,6 +309,17 @@ export function useAppStore() {
     mutateData((prev) => ({ ...prev, customers: [...prev.customers, newCustomer] }));
   };
 
+  const addCustomers = (customersToAdd: Omit<Customer, "id">[]) => {
+    const newCustomers: Customer[] = customersToAdd.map((c) => ({
+      ...c,
+      id: uuidv4(),
+    }));
+    mutateData((prev) => ({
+      ...prev,
+      customers: [...prev.customers, ...newCustomers],
+    }));
+  };
+
   const updateCustomer = (id: string, name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => {
     mutateData((prev) => ({
       ...prev,
@@ -297,6 +334,38 @@ export function useAppStore() {
       ...prev,
       customers: prev.customers.filter((c) => c.id !== id),
     }));
+  };
+
+  const syncCustomersFromInvoices = () => {
+    mutateData((prev) => {
+      const nextCustomers = [...prev.customers];
+      let addedCount = 0;
+      
+      const invoiceCustomerNames = new Set(prev.invoices.map((inv) => inv.customerName));
+      
+      invoiceCustomerNames.forEach((name) => {
+        if (!name) return;
+        if (!nextCustomers.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+          nextCustomers.push({
+            id: uuidv4(),
+            name: name,
+            exportSeparateSheet: false,
+          });
+          addedCount++;
+        }
+      });
+      
+      if (addedCount > 0) {
+         alert(`Berhasil menambahkan ${addedCount} konsumen baru dari data faktur.`);
+      } else {
+         alert("Semua konsumen dari faktur sudah terdaftar.");
+      }
+
+      return {
+        ...prev,
+        customers: nextCustomers,
+      };
+    });
   };
 
   const restoreData = (jsonData: string): boolean => {
@@ -333,8 +402,10 @@ export function useAppStore() {
     addBulkPayments,
     deleteInvoice,
     addCustomer,
+    addCustomers,
     updateCustomer,
     deleteCustomer,
+    syncCustomersFromInvoices,
     restoreData,
     getBackupData,
   };

@@ -1,18 +1,22 @@
 import React, { useState } from "react";
 import { Customer } from "../types";
-import { Users, Plus, Edit2, Trash2, X } from "lucide-react";
+import { Users, Plus, Edit2, Trash2, X, Upload, FileDown, RefreshCcw } from "lucide-react";
+import * as XLSX from "xlsx-js-style";
 
 interface CustomersProps {
   customers: Customer[];
   onAdd: (name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => void;
+  onAddBulk?: (customers: Omit<Customer, "id">[]) => void;
   onUpdate: (id: string, name: string, phone?: string, address?: string, exportSeparateSheet?: boolean) => void;
   onDelete: (id: string) => void;
+  onSyncFromInvoices?: () => void;
 }
 
-export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersProps) {
+export function Customers({ customers, onAdd, onAddBulk, onUpdate, onDelete, onSyncFromInvoices }: CustomersProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({ name: "", phone: "", address: "", exportSeparateSheet: false });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const openModal = (customer?: Customer) => {
     if (customer) {
@@ -47,6 +51,82 @@ export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersPro
     closeModal();
   };
 
+  const downloadTemplate = () => {
+    const aoa = [
+      ["NAMA KONSUMEN", "NO HP", "ALAMAT", "PISAH SHEET (TRUE/FALSE)"],
+      ["CV Bintang Terang", "08123456789", "Jl. Raya Cikarang No 1", "TRUE"],
+      ["Toko Makmur", "08198765432", "Pasar Induk", "FALSE"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template_Konsumen");
+    XLSX.writeFile(wb, "Template_Import_Konsumen.xlsx");
+  };
+
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const wb = XLSX.read(data, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json<any>(ws, { header: 1 });
+        
+        // Skip header
+        const rows = jsonData.slice(1);
+        const newCustomers: Omit<Customer, "id">[] = [];
+        let skipped = 0;
+
+        rows.forEach(row => {
+          if (!row || row.length === 0) return;
+          const name = (row[0] || "").toString().trim();
+          if (!name) return; // name is required
+          
+          // Check if already exists in the current list
+          const exists = customers.some(c => c.name.toLowerCase() === name.toLowerCase());
+          if (exists) {
+            skipped++;
+            return;
+          }
+
+          const phone = (row[1] || "").toString().trim();
+          const address = (row[2] || "").toString().trim();
+          const exportSeparateStr = (row[3] || "").toString().trim().toUpperCase();
+          const exportSeparateSheet = exportSeparateStr === "TRUE";
+
+          newCustomers.push({
+            name,
+            phone,
+            address,
+            exportSeparateSheet
+          });
+        });
+
+        if (newCustomers.length > 0) {
+          if (onAddBulk) {
+            onAddBulk(newCustomers);
+            alert(`Berhasil mengimpor ${newCustomers.length} konsumen baru. ${skipped > 0 ? `(${skipped} konsumen dilewati karena nama sudah ada)` : ""}`);
+          } else {
+             // Fallback to adding one by one if onAddBulk is somehow not provided
+             newCustomers.forEach(c => onAdd(c.name, c.phone, c.address, c.exportSeparateSheet));
+             alert(`Berhasil mengimpor ${newCustomers.length} konsumen baru. ${skipped > 0 ? `(${skipped} konsumen dilewati karena nama sudah ada)` : ""}`);
+          }
+        } else {
+          alert(skipped > 0 ? `Semua konsumen dalam file sudah ada di sistem (${skipped} dilewati).` : "Tidak ada data konsumen valid ditemukan.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Gagal membaca file Excel.");
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
@@ -54,13 +134,47 @@ export function Customers({ customers, onAdd, onUpdate, onDelete }: CustomersPro
           <h2 className="text-2xl font-bold text-gray-900">Data Konsumen</h2>
           <p className="mt-1 text-sm text-gray-500">Kelola master data pelanggan Anda.</p>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Tambah Konsumen
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
+          >
+            <FileDown size={18} />
+            Template
+          </button>
+          <div>
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              ref={fileInputRef}
+              onChange={handleImportExcel}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              <Upload size={18} />
+              Import
+            </button>
+          </div>
+          {onSyncFromInvoices && (
+            <button
+              onClick={onSyncFromInvoices}
+              className="flex items-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+            >
+              <RefreshCcw size={18} />
+              Sync dari Faktur
+            </button>
+          )}
+          <button
+            onClick={() => openModal()}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <Plus size={18} />
+            Tambah Konsumen
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
