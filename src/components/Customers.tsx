@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Customer } from "../types";
-import { Users, Plus, Edit2, Trash2, X, Upload, FileDown, RefreshCcw } from "lucide-react";
+import { Users, Plus, Edit2, Trash2, X, Upload, FileDown, RefreshCcw, Search } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 
 interface CustomersProps {
@@ -13,10 +13,17 @@ interface CustomersProps {
 }
 
 export function Customers({ customers, onAdd, onAddBulk, onUpdate, onDelete, onSyncFromInvoices }: CustomersProps) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({ name: "", phone: "", address: "", exportSeparateSheet: false });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.phone && c.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (c.address && c.address.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const openModal = (customer?: Customer) => {
     if (customer) {
@@ -134,7 +141,17 @@ export function Customers({ customers, onAdd, onAddBulk, onUpdate, onDelete, onS
           <h2 className="text-2xl font-bold text-gray-900">Data Konsumen</h2>
           <p className="mt-1 text-sm text-gray-500">Kelola master data pelanggan Anda.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 w-full sm:w-64">
+            <Search size={18} className="text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari konsumen..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent text-sm outline-none"
+            />
+          </div>
           <button
             onClick={downloadTemplate}
             className="flex items-center gap-2 rounded-lg border border-emerald-600 bg-white px-4 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50"
@@ -189,7 +206,7 @@ export function Customers({ customers, onAdd, onAddBulk, onUpdate, onDelete, onS
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {customers.length === 0 ? (
+              {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-8 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center">
@@ -199,7 +216,7 @@ export function Customers({ customers, onAdd, onAddBulk, onUpdate, onDelete, onS
                   </td>
                 </tr>
               ) : (
-                customers.map((c) => (
+                filteredCustomers.map((c) => (
                   <tr key={c.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 font-medium text-gray-900">{c.name}</td>
                     <td className="px-4 py-4">{c.phone || "-"}</td>
