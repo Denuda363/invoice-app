@@ -248,14 +248,27 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
     // Apply styles
+    const borderStyle = {
+      top: { style: "thin", color: { rgb: "000000" } },
+      bottom: { style: "thin", color: { rgb: "000000" } },
+      left: { style: "thin", color: { rgb: "000000" } },
+      right: { style: "thin", color: { rgb: "000000" } }
+    };
+
     const headerStyle = {
       font: { bold: true },
       alignment: { horizontal: "center", vertical: "center" },
-      fill: { fgColor: { rgb: "E5E7EB" } }
+      fill: { fgColor: { rgb: "E5E7EB" } },
+      border: borderStyle
     };
     
     const paidStyle = {
-      fill: { fgColor: { rgb: "BBF7D0" } } // Tailwind green-200
+      fill: { fgColor: { rgb: "BBF7D0" } }, // Tailwind green-200
+      border: borderStyle
+    };
+
+    const regularStyle = {
+      border: borderStyle
     };
 
     for (let R = 0; R < aoa.length; ++R) {
@@ -269,6 +282,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             ws[cell_ref].s = headerStyle;
           } else if (isPaid) {
             ws[cell_ref].s = paidStyle;
+          } else {
+            ws[cell_ref].s = regularStyle;
           }
         }
       }
@@ -285,6 +300,12 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       { s: { r: 0, c: 6 }, e: { r: 1, c: 6 } }, // SISA
       { s: { r: 0, c: 7 }, e: { r: 0, c: 9 } }, // TGL JATUH TEMPO
       { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } }, // keterangan lunas
+    ];
+
+    ws["!cols"] = [
+      { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 5 },
+      { wch: 12 }, { wch: 8 }, { wch: 20 },
     ];
 
     const wb = XLSX.utils.book_new();
@@ -336,6 +357,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
                   custWs[cell_ref].s = headerStyle;
                 } else if (isPaid) {
                   custWs[cell_ref].s = paidStyle;
+                } else {
+                  custWs[cell_ref].s = regularStyle;
                 }
               }
             }

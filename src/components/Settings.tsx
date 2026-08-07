@@ -74,6 +74,14 @@ export function Settings({
       const wsInvoices = XLSX.utils.aoa_to_sheet(invoicesAoa);
       const wsPayments = XLSX.utils.aoa_to_sheet(paymentsAoa);
       
+      const styleSheet = (ws: any, cols: any[]) => {
+        ws["!cols"] = cols;
+      };
+
+      styleSheet(wsCustomers, [{ wch: 36 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 10 }]);
+      styleSheet(wsInvoices, [{ wch: 36 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 }]);
+      styleSheet(wsPayments, [{ wch: 36 }, { wch: 36 }, { wch: 12 }, { wch: 15 }]);
+      
       XLSX.utils.book_append_sheet(wb, wsCustomers, "Customers");
       XLSX.utils.book_append_sheet(wb, wsInvoices, "Invoices");
       XLSX.utils.book_append_sheet(wb, wsPayments, "Payments");
