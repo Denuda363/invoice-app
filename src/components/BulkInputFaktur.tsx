@@ -267,17 +267,35 @@ export function BulkInputFaktur({ customers, existingInvoiceNumbers, onSave, onC
     }
 
     const newInvoiceNumbers = new Set<string>();
+    let hasDuplicate = false;
+
     for (const inv of allValidRows) {
       const invNum = inv.invoiceNumber.toLowerCase();
-      if (existingInvoiceNumbers.includes(invNum)) {
-        alert(`No faktur ${inv.invoiceNumber} sudah ada di sistem. Mohon periksa kembali.`);
-        return;
-      }
-      if (newInvoiceNumbers.has(invNum)) {
-        alert(`No faktur ${inv.invoiceNumber} terduplikasi dalam input Anda. Mohon periksa kembali.`);
-        return;
+      if (existingInvoiceNumbers.includes(invNum) || newInvoiceNumbers.has(invNum)) {
+        hasDuplicate = true;
+        break;
       }
       newInvoiceNumbers.add(invNum);
+    }
+
+    if (hasDuplicate) {
+      const generateNew = window.confirm("Terdapat no faktur yang sama dengan data yang ada. Buatkan no faktur otomatis yang berbeda?");
+      if (!generateNew) {
+        return;
+      }
+
+      const combinedExisting = new Set(existingInvoiceNumbers);
+      const generatedRows = allValidRows.map(inv => {
+        let newNumber = inv.invoiceNumber;
+        let counter = 1;
+        while (combinedExisting.has(newNumber.toLowerCase())) {
+          newNumber = `${inv.invoiceNumber}-${counter}`;
+          counter++;
+        }
+        combinedExisting.add(newNumber.toLowerCase());
+        return { ...inv, invoiceNumber: newNumber };
+      });
+      allValidRows = generatedRows;
     }
 
     onSave(allValidRows);

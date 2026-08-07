@@ -58,17 +58,27 @@ export function InvoiceHistory({
       return;
     }
 
+    let finalInvoiceNumber = editInvoiceNumber;
     const duplicate = invoices.find(
-      (inv) => inv.id !== id && inv.invoiceNumber.toLowerCase() === editInvoiceNumber.toLowerCase()
+      (inv) => inv.id !== id && inv.invoiceNumber.toLowerCase() === finalInvoiceNumber.toLowerCase()
     );
     if (duplicate) {
-      alert(`No faktur ${editInvoiceNumber} sudah digunakan.`);
-      return;
+      const generateNew = window.confirm(`No faktur ${finalInvoiceNumber} sudah digunakan. Buatkan no faktur otomatis yang berbeda?`);
+      if (!generateNew) {
+        return;
+      }
+      
+      const existingNumbers = new Set(invoices.map(inv => inv.id !== id ? inv.invoiceNumber.toLowerCase() : ""));
+      let counter = 1;
+      while (existingNumbers.has(finalInvoiceNumber.toLowerCase())) {
+        finalInvoiceNumber = `${editInvoiceNumber}-${counter}`;
+        counter++;
+      }
     }
 
     onEdit(
       id,
-      editInvoiceNumber,
+      finalInvoiceNumber,
       editCustomerName,
       editDate,
       editDueDate,
