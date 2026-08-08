@@ -111,7 +111,6 @@ export default function App() {
             <Dashboard
               invoices={store.invoices}
               onAddFaktur={() => setView("BULK_INPUT_INVOICE")}
-              onPayFaktur={(invoice) => setPaymentInvoice(invoice)}
             />
           )}
 

@@ -116,7 +116,7 @@ export function InvoiceHistory({
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-max text-left text-sm">
             <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 font-medium">No. Faktur</th>

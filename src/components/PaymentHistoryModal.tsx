@@ -46,7 +46,7 @@ export function PaymentHistoryModal({ invoice, onClose, onEditPayment, onDeleteP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl rounded-xl bg-white p-4 sm:p-6 shadow-xl flex flex-col max-h-[90vh]">
         <div className="mb-4 flex items-center justify-between shrink-0">
           <h2 className="text-xl font-bold text-gray-800">
             Riwayat Pembayaran
@@ -60,7 +60,7 @@ export function PaymentHistoryModal({ invoice, onClose, onEditPayment, onDeleteP
         </div>
 
         <div className="mb-6 space-y-2 text-sm text-gray-600 shrink-0 bg-gray-50 p-4 rounded-lg border border-gray-100">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p><span className="font-medium text-gray-700">Faktur:</span> {invoice.invoiceNumber}</p>
               <p><span className="font-medium text-gray-700">Konsumen:</span> {invoice.customerName}</p>
@@ -73,7 +73,7 @@ export function PaymentHistoryModal({ invoice, onClose, onEditPayment, onDeleteP
         </div>
 
         <div className="overflow-y-auto flex-1 border rounded-lg border-gray-200">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[400px] text-left text-sm">
             <thead className="bg-gray-50 text-gray-600 border-b border-gray-200 sticky top-0">
               <tr>
                 <th className="px-4 py-3 font-medium">Tanggal</th>
