@@ -8,6 +8,7 @@ import { Reports } from "./components/Reports";
 import { Customers } from "./components/Customers";
 import { Settings } from "./components/Settings";
 import { PaymentModal } from "./components/PaymentModal";
+import { PaymentHistoryModal } from "./components/PaymentHistoryModal";
 import {
   LayoutDashboard,
   FilePlus,
@@ -25,6 +26,7 @@ export default function App() {
   const store = useAppStore();
   const [view, setView] = useState<ViewState>("DASHBOARD");
   const [paymentInvoice, setPaymentInvoice] = useState<Invoice | null>(null);
+  const [historyInvoice, setHistoryInvoice] = useState<Invoice | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigation = [
@@ -118,6 +120,7 @@ export default function App() {
               invoices={store.invoices}
               customers={store.customers}
               onDelete={store.deleteInvoice}
+              onViewHistory={(invoice) => setHistoryInvoice(invoice)}
               onEdit={store.editInvoice}
             />
           )}
@@ -176,7 +179,15 @@ export default function App() {
           onSave={store.addPayment}
         />
       )}
+      
+      {historyInvoice && (
+        <PaymentHistoryModal
+          invoice={store.invoices.find(i => i.id === historyInvoice.id) || null}
+          onClose={() => setHistoryInvoice(null)}
+          onEditPayment={store.editPayment}
+          onDeletePayment={store.deletePayment}
+        />
+      )}
     </div>
   );
 }
-

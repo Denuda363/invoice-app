@@ -277,6 +277,56 @@ export function useAppStore() {
     }));
   };
 
+  const editPayment = (invoiceId: string, paymentId: string, newAmount: number, newDate: string) => {
+    mutateData((prev) => ({
+      ...prev,
+      invoices: prev.invoices.map((inv) => {
+        if (inv.id !== invoiceId) return inv;
+        
+        const updatedPayments = inv.payments.map(p => 
+          p.id === paymentId ? { ...p, amount: newAmount, date: newDate } : p
+        );
+        
+        const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+        let status: Invoice["status"] = "UNPAID";
+        if (totalPaid >= inv.totalAmount) {
+          status = "PAID";
+        } else if (totalPaid > 0) {
+          status = "PARTIAL";
+        }
+        return {
+          ...inv,
+          payments: updatedPayments,
+          status,
+        };
+      }),
+    }));
+  };
+
+  const deletePayment = (invoiceId: string, paymentId: string) => {
+    mutateData((prev) => ({
+      ...prev,
+      invoices: prev.invoices.map((inv) => {
+        if (inv.id !== invoiceId) return inv;
+        
+        const updatedPayments = inv.payments.filter(p => p.id !== paymentId);
+        
+        const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+        let status: Invoice["status"] = "UNPAID";
+        if (totalPaid >= inv.totalAmount) {
+          status = "PAID";
+        } else if (totalPaid > 0) {
+          status = "PARTIAL";
+        }
+        return {
+          ...inv,
+          payments: updatedPayments,
+          status,
+        };
+      }),
+    }));
+  };
+
   const editInvoice = (
     invoiceId: string,
     invoiceNumber: string,
@@ -417,6 +467,8 @@ export function useAppStore() {
     addInvoices,
     editInvoice,
     addPayment,
+    editPayment,
+    deletePayment,
     addBulkPayments,
     deleteInvoice,
     addCustomer,

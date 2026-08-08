@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Invoice, Customer } from "../types";
 import { formatCurrency } from "../utils";
-import { Search, Edit2, Trash2, X, Check } from "lucide-react";
+import { Search, Edit2, Trash2, X, Check, Eye, List } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { CustomerSelect } from "./CustomerSelect";
 
@@ -9,6 +9,7 @@ interface InvoiceHistoryProps {
   invoices: Invoice[];
   customers: Customer[];
   onDelete: (id: string) => void;
+  onViewHistory?: (invoice: Invoice) => void;
   onEdit: (
     id: string,
     invoiceNumber: string,
@@ -23,6 +24,7 @@ export function InvoiceHistory({
   invoices,
   customers,
   onDelete,
+  onViewHistory,
   onEdit,
 }: InvoiceHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -242,6 +244,15 @@ export function InvoiceHistory({
                               </span>
                           </td>
                           <td className="px-4 py-3 text-right space-x-2 whitespace-nowrap">
+                            {onViewHistory && inv.payments.length > 0 && (
+                              <button
+                                onClick={() => onViewHistory(inv)}
+                                className="rounded p-1.5 text-indigo-600 hover:bg-indigo-50"
+                                title="Riwayat Pembayaran"
+                              >
+                                <List size={16} />
+                              </button>
+                            )}
                             <button
                               onClick={() => handleEditClick(inv)}
                               className="rounded p-1.5 text-blue-600 hover:bg-blue-50"

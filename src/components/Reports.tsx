@@ -646,6 +646,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
                       <th className="px-4 py-3 font-medium">Tgl Faktur</th>
                       <th className="px-4 py-3 font-medium">Jatuh Tempo</th>
                       <th className="px-4 py-3 font-medium">Umur Faktur</th>
+                      <th className="px-4 py-3 font-medium text-right">Total Tagihan</th>
+                      <th className="px-4 py-3 font-medium text-right">Sudah Dibayar</th>
                       <th className="px-4 py-3 font-medium text-right">Sisa Tagihan</th>
                       <th className="px-4 py-3 font-medium text-right">Aksi</th>
                     </tr>
@@ -693,6 +695,12 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            {formatCurrency(inv.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-green-600">
+                            {formatCurrency(totalPaid)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-red-600">
                             {formatCurrency(remaining)}
                           </td>
                           <td className="px-4 py-3 text-right">

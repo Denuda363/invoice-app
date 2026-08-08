@@ -84,16 +84,25 @@ export function PaymentModal({ invoice, onClose, onSave }: PaymentModalProps) {
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Jumlah Bayar (Rp)
             </label>
-            <input
-              type="number"
-              required
-              min="1"
-              max={remaining}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Contoh: 1500000"
-              className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="flex gap-2">
+              <input
+                type="number"
+                required
+                min="1"
+                max={remaining}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Contoh: 1500000"
+                className="w-full rounded-lg border border-gray-300 p-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setAmount(remaining.toString())}
+                className="shrink-0 rounded-lg bg-green-100 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-200"
+              >
+                Lunasi Full
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">
