@@ -156,8 +156,8 @@ export function BulkInputFaktur({ customers, existingInvoiceNumbers, onSave, onC
           if (dateStr === undefined || dateStr === null || dateStr === "") {
              dateStr = format(new Date(), "yyyy-MM-dd");
           } else if (typeof dateStr === "number") {
-             const d = new Date((dateStr - (25567 + 1)) * 86400 * 1000);
-             dateStr = format(d, "yyyy-MM-dd");
+             const d = new Date(Math.round((dateStr - 25569) * 86400 * 1000));
+             dateStr = d.toISOString().split("T")[0];
           } else {
              // Try to parse string date just in case
              dateStr = String(dateStr);
