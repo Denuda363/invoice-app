@@ -154,6 +154,22 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       ["NO FAKTUR", "NOMINAL BAYAR", "TANGGAL BAYAR"],
       ["INV-1001", "500000", format(new Date(), "yyyy-MM-dd")],
     ];
+        let sumNominal = 0;
+    let sumBayar = 0;
+    let sumSisa = 0;
+
+    filteredInvoices.forEach((inv) => {
+      const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+      const remaining = inv.totalAmount - totalPaid;
+      sumNominal += inv.totalAmount;
+      sumBayar += totalPaid;
+      sumSisa += remaining;
+    });
+
+    aoa.push([
+      "", "", "", "TOTAL", formatRp(sumNominal), formatRp(sumBayar), formatRp(sumSisa), "", "", "", ""
+    ]);
+
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template_Pembayaran");
@@ -256,8 +272,13 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
     // Sort by payment date descending
     allPayments.sort((a, b) => new Date(b.payment.date).getTime() - new Date(a.payment.date).getTime());
 
+    let totalNominalFaktur = 0;
+    let totalNominalBayar = 0;
+
     allPayments.forEach(({ payment, invoice }) => {
       const pDate = new Date(payment.date);
+      totalNominalFaktur += invoice.totalAmount;
+      totalNominalBayar += payment.amount;
       aoa.push([
         counter++,
         format(pDate, "dd-MMM-yy", { locale: id }),
@@ -267,6 +288,15 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
         formatRp(payment.amount)
       ]);
     });
+
+    aoa.push([
+      "",
+      "",
+      "",
+      "TOTAL",
+      formatRp(totalNominalFaktur),
+      formatRp(totalNominalBayar)
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
@@ -282,16 +312,23 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       fill: { fgColor: { rgb: "E5E7EB" } },
       border: borderStyle
     };
+    const totalStyle = {
+      font: { bold: true },
+      border: borderStyle
+    };
     const regularStyle = {
       border: borderStyle
     };
 
     for (let R = 0; R < aoa.length; ++R) {
+      const isTotal = R === aoa.length - 1;
       for (let C = 0; C < aoa[R].length; ++C) {
         const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
         if (ws[cell_ref]) {
           if (R === 0) {
             ws[cell_ref].s = headerStyle;
+          } else if (isTotal) {
+            ws[cell_ref].s = totalStyle;
           } else {
             ws[cell_ref].s = regularStyle;
           }
@@ -322,13 +359,21 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
 
     const formatRp = (num: number) => `Rp${new Intl.NumberFormat("id-ID").format(num)}`;
 
+    let sumNominal = 0;
+    let sumBayar = 0;
+    let sumSisa = 0;
+
     filteredInvoices.forEach((inv, index) => {
       const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
       const remaining = inv.totalAmount - totalPaid;
       
+      sumNominal += inv.totalAmount;
+      sumBayar += totalPaid;
+      sumSisa += remaining;
+
       const invDate = new Date(inv.date);
       const dueDate = new Date(inv.dueDate);
-
+      
       aoa.push([
         index + 1,
         inv.customerName,
@@ -344,7 +389,12 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       ]);
     });
 
+    aoa.push([
+      "", "", "", "TOTAL", formatRp(sumNominal), formatRp(sumBayar), formatRp(sumSisa), "", "", "", ""
+    ]);
+
     const ws = XLSX.utils.aoa_to_sheet(aoa);
+
 
     // Apply styles
     const borderStyle = {
@@ -369,14 +419,16 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
     const regularStyle = {
       border: borderStyle
     };
-
     const overdueStyle = {
       fill: { fgColor: { rgb: "FECACA" } }, // Tailwind red-200
       border: borderStyle
     };
-
     const warningStyle = {
       fill: { fgColor: { rgb: "FED7AA" } }, // Tailwind orange-200
+      border: borderStyle
+    };
+    const totalStyle = {
+      font: { bold: true },
       border: borderStyle
     };
 
@@ -385,12 +437,13 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
 
     for (let R = 0; R < aoa.length; ++R) {
       const isHeader = R === 0 || R === 1;
-      const isPaid = !isHeader && aoa[R][10] === "Lunas";
+      const isTotal = R === aoa.length - 1;
+      const isPaid = !isHeader && !isTotal && aoa[R][10] === "Lunas";
       
       let isOverdue = false;
       let isWarning = false;
 
-      if (!isHeader && !isPaid) {
+      if (!isHeader && !isPaid && !isTotal) {
         const inv = filteredInvoices[R - 2];
         if (inv) {
           const dueDate = new Date(inv.dueDate);
@@ -409,6 +462,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
         if (ws[cell_ref]) {
           if (isHeader) {
             ws[cell_ref].s = headerStyle;
+          } else if (isTotal) {
+            ws[cell_ref].s = totalStyle;
           } else if (isPaid) {
             ws[cell_ref].s = paidStyle;
           } else if (isOverdue) {
@@ -421,9 +476,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
         }
       }
     }
-
-    // Merge cells for headers
     ws["!merges"] = [
+
       { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // NO
       { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // CUSTOMER
       { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // TGL FAKTUR
