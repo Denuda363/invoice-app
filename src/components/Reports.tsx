@@ -237,6 +237,83 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
     reader.readAsBinaryString(file);
   };
 
+  const exportPaymentsExcel = () => {
+    const aoa: any[][] = [
+      ["NO", "TANGGAL BAYAR", "KONSUMEN", "NO FAKTUR", "NOMINAL FAKTUR", "NOMINAL BAYAR"],
+    ];
+
+    const formatRp = (num: number) => `Rp${new Intl.NumberFormat("id-ID").format(num)}`;
+    let counter = 1;
+
+    // Collect all payments from filtered invoices
+    const allPayments: { payment: any, invoice: any }[] = [];
+    filteredInvoices.forEach(inv => {
+      inv.payments.forEach(p => {
+        allPayments.push({ payment: p, invoice: inv });
+      });
+    });
+
+    // Sort by payment date descending
+    allPayments.sort((a, b) => new Date(b.payment.date).getTime() - new Date(a.payment.date).getTime());
+
+    allPayments.forEach(({ payment, invoice }) => {
+      const pDate = new Date(payment.date);
+      aoa.push([
+        counter++,
+        format(pDate, "dd-MMM-yy", { locale: id }),
+        invoice.customerName,
+        invoice.invoiceNumber,
+        formatRp(invoice.totalAmount),
+        formatRp(payment.amount)
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    const borderStyle = {
+      top: { style: "thin" },
+      bottom: { style: "thin" },
+      left: { style: "thin" },
+      right: { style: "thin" }
+    };
+    const headerStyle = {
+      font: { bold: true },
+      alignment: { horizontal: "center", vertical: "center" },
+      fill: { fgColor: { rgb: "E5E7EB" } },
+      border: borderStyle
+    };
+    const regularStyle = {
+      border: borderStyle
+    };
+
+    for (let R = 0; R < aoa.length; ++R) {
+      for (let C = 0; C < aoa[R].length; ++C) {
+        const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+        if (ws[cell_ref]) {
+          if (R === 0) {
+            ws[cell_ref].s = headerStyle;
+          } else {
+            ws[cell_ref].s = regularStyle;
+          }
+        }
+      }
+    }
+
+    const wscols = [
+      { wch: 5 },  // NO
+      { wch: 15 }, // TGL BAYAR
+      { wch: 25 }, // KONSUMEN
+      { wch: 15 }, // NO FAKTUR
+      { wch: 18 }, // NOMINAL FAKTUR
+      { wch: 18 }, // NOMINAL BAYAR
+    ];
+    ws["!cols"] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Riwayat Pembayaran");
+    XLSX.writeFile(wb, `Riwayat_Pembayaran_${format(new Date(), "dd-MMM-yyyy")}.xlsx`);
+  };
+
   const exportExcel = () => {
     const aoa: any[][] = [
       ["NO", "CUSTOMER", "TGL FAKTUR", "NO FAKTUR", "NOMINAL", "BAYAR", "SISA", "TGL JATUH TEMPO", "", "", "keterangan lunas"],
@@ -522,6 +599,13 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
           >
             <FileDown size={18} />
             Export Excel
+          </button>
+          <button
+            onClick={exportPaymentsExcel}
+            className="flex items-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50"
+          >
+            <FileDown size={18} />
+            Export Pembayaran
           </button>
           <button
             onClick={exportPDF}
