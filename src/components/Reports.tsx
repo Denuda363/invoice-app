@@ -20,6 +20,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
   const [statusFilter, setStatusFilter] = useState("UNPAID");
   const [dueDateFilter, setDueDateFilter] = useState("ALL");
   const [customAgeFilter, setCustomAgeFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +40,26 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       const dueDate = new Date(inv.dueDate);
       dueDate.setHours(0, 0, 0, 0);
       return differenceInDays(dueDate, today) < 0;
+    });
+  }
+
+  if (startDate) {
+    filteredInvoices = filteredInvoices.filter((inv) => {
+      const dueDate = new Date(inv.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      return dueDate >= start;
+    });
+  }
+
+  if (endDate) {
+    filteredInvoices = filteredInvoices.filter((inv) => {
+      const dueDate = new Date(inv.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      return dueDate <= end;
     });
   }
 
@@ -596,6 +618,24 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             <option value="30DAYS">8 - 30 Hari</option>
             <option value="MORE30DAYS">Lebih dari 30 Hari</option>
           </select>
+        </div>
+        <div className="flex-shrink-0 flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
+          <span className="text-gray-400 text-sm">Dari:</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="bg-transparent text-sm outline-none"
+          />
+        </div>
+        <div className="flex-shrink-0 flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
+          <span className="text-gray-400 text-sm">Sampai:</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="bg-transparent text-sm outline-none"
+          />
         </div>
       </div>
 
