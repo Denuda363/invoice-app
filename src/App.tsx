@@ -153,6 +153,8 @@ export default function App() {
           {view === "PAYMENT_HISTORY" && (
             <PaymentHistory
               invoices={store.invoices}
+              onEditPayment={store.editPayment}
+              onDeletePayment={store.deletePayment}
             />
           )}
 

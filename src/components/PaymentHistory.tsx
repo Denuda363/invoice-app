@@ -1,18 +1,24 @@
 import React, { useState } from "react";
 import { Invoice } from "../types";
-import { Search, FileDown, Calendar } from "lucide-react";
+import { Search, FileDown, Calendar, Edit2, Trash2, X, Check } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import * as XLSX from "xlsx";
 
 interface PaymentHistoryProps {
   invoices: Invoice[];
+  onEditPayment: (invoiceId: string, paymentId: string, newAmount: number, newDate: string) => void;
+  onDeletePayment: (invoiceId: string, paymentId: string) => void;
 }
 
-export function PaymentHistory({ invoices }: PaymentHistoryProps) {
+export function PaymentHistory({ invoices, onEditPayment, onDeletePayment }: PaymentHistoryProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editAmount, setEditAmount] = useState<number | "">("");
 
   const formatRp = (num: number) => `Rp${new Intl.NumberFormat("id-ID").format(num)}`;
 
@@ -48,6 +54,27 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
 
     return true;
   });
+
+  const handleEditClick = (paymentId: string, date: string, amount: number) => {
+    setEditingPaymentId(paymentId);
+    setEditDate(date);
+    setEditAmount(amount);
+  };
+
+  const handleSaveEdit = (invoiceId: string, paymentId: string) => {
+    if (!editDate || editAmount === "") {
+      alert("Tanggal dan nominal bayar harus diisi.");
+      return;
+    }
+    onEditPayment(invoiceId, paymentId, Number(editAmount), editDate);
+    setEditingPaymentId(null);
+  };
+
+  const handleDelete = (invoiceId: string, paymentId: string) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus pembayaran ini?")) {
+      onDeletePayment(invoiceId, paymentId);
+    }
+  };
 
   const exportExcel = () => {
     const aoa: any[][] = [
@@ -205,17 +232,66 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
                 <th className="px-6 py-4 font-medium">No Faktur</th>
                 <th className="px-6 py-4 font-medium">Nominal Faktur</th>
                 <th className="px-6 py-4 font-medium">Nominal Bayar</th>
+                <th className="px-6 py-4 font-medium text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     Tidak ada data pembayaran yang ditemukan.
                   </td>
                 </tr>
               ) : (
                 filteredPayments.map(({ payment, invoice }) => (
+                  editingPaymentId === payment.id ? (
+                    <tr key={payment.id} className="bg-blue-50/50">
+                      <td className="px-4 py-2 align-top">
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm outline-none focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-2 align-top text-gray-900 font-medium">
+                        {invoice.customerName}
+                      </td>
+                      <td className="px-4 py-2 align-top text-gray-500">
+                        {invoice.invoiceNumber}
+                      </td>
+                      <td className="px-4 py-2 align-top text-gray-500">
+                        {formatRp(invoice.totalAmount)}
+                      </td>
+                      <td className="px-4 py-2 align-top">
+                        <input
+                          type="number"
+                          min="0"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value ? Number(e.target.value) : "")}
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm outline-none focus:border-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-2 align-top text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleSaveEdit(invoice.id, payment.id)}
+                            className="rounded p-1 text-emerald-600 hover:bg-emerald-50"
+                            title="Simpan"
+                          >
+                            <Check size={18} />
+                          </button>
+                          <button
+                            onClick={() => setEditingPaymentId(null)}
+                            className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                            title="Batal"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
                   <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-gray-900">
@@ -237,7 +313,26 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
                     <td className="px-6 py-4 font-medium text-emerald-600">
                       {formatRp(payment.amount)}
                     </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEditClick(payment.id, payment.date, payment.amount)}
+                          className="rounded p-1.5 text-blue-600 hover:bg-blue-50 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(invoice.id, payment.id)}
+                          className="rounded p-1.5 text-red-600 hover:bg-red-50 transition-colors"
+                          title="Hapus"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
+                  )
                 ))
               )}
             </tbody>
