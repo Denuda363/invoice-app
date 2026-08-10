@@ -174,6 +174,7 @@ export default function App() {
               migrateLocalToFirebase={store.migrateLocalToFirebase}
               migrateFirebaseToLocal={store.migrateFirebaseToLocal}
               resetData={store.resetData}
+              resetDueDates={store.resetDueDates}
             />
           )}
         </div>

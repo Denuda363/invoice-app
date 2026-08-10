@@ -163,7 +163,15 @@ export function InvoiceHistory({
                             <input
                               type="date"
                               value={editDate}
-                              onChange={(e) => setEditDate(e.target.value)}
+                              onChange={(e) => {
+                                const newDate = e.target.value;
+                                setEditDate(newDate);
+                                if (newDate) {
+                                  const d = new Date(newDate);
+                                  d.setDate(d.getDate() + 30);
+                                  setEditDueDate(format(d, "yyyy-MM-dd"));
+                                }
+                              }}
                               className="w-full rounded border border-gray-300 px-2 py-1 text-sm outline-none focus:border-blue-500"
                             />
                           </td>

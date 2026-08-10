@@ -51,24 +51,34 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
 
   const exportExcel = () => {
     const aoa: any[][] = [
-      ["NO", "TANGGAL BAYAR", "KONSUMEN", "NO FAKTUR", "NOMINAL FAKTUR", "NOMINAL BAYAR"],
+      ["NO", "TANGGAL BAYAR", "KONSUMEN", "NO FAKTUR", "NOMINAL FAKTUR", "NOMINAL BAYAR", "SISA TAGIHAN", "KETERANGAN"],
     ];
 
     let counter = 1;
     let totalNominalFaktur = 0;
     let totalNominalBayar = 0;
+    let totalSisaTagihan = 0;
 
     filteredPayments.forEach(({ payment, invoice }) => {
       const pDate = new Date(payment.date);
+      const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+      const sisa = invoice.totalAmount - totalPaid;
+      
       totalNominalFaktur += invoice.totalAmount;
       totalNominalBayar += payment.amount;
+      // We only sum up sisa tagihan if it makes sense, maybe not total Sisa Tagihan as it would duplicate per payment.
+      // But let's just leave it empty or sum it up for the rows shown.
+      totalSisaTagihan += sisa;
+      
       aoa.push([
         counter++,
         format(pDate, "dd-MMM-yy", { locale: id }),
         invoice.customerName,
         invoice.invoiceNumber,
         formatRp(invoice.totalAmount),
-        formatRp(payment.amount)
+        formatRp(payment.amount),
+        formatRp(sisa),
+        sisa <= 0 ? "Lunas" : "Belum Lunas"
       ]);
     });
 
@@ -78,7 +88,9 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
       "",
       "TOTAL",
       formatRp(totalNominalFaktur),
-      formatRp(totalNominalBayar)
+      formatRp(totalNominalBayar),
+      "",
+      ""
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -126,6 +138,8 @@ export function PaymentHistory({ invoices }: PaymentHistoryProps) {
       { wch: 15 }, // NO FAKTUR
       { wch: 18 }, // NOMINAL FAKTUR
       { wch: 18 }, // NOMINAL BAYAR
+      { wch: 18 }, // SISA TAGIHAN
+      { wch: 15 }, // KETERANGAN
     ];
     ws["!cols"] = wscols;
 

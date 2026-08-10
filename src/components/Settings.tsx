@@ -11,6 +11,7 @@ interface SettingsProps {
   migrateLocalToFirebase: () => void;
   migrateFirebaseToLocal: () => void;
   resetData: () => void;
+  resetDueDates: () => void;
 }
 
 export function Settings({ 
@@ -20,7 +21,8 @@ export function Settings({
   setDbMode, 
   migrateLocalToFirebase, 
   migrateFirebaseToLocal,
-  resetData 
+  resetData,
+  resetDueDates
 }: SettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputExcelRef = useRef<HTMLInputElement>(null);
@@ -353,6 +355,25 @@ export function Settings({
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-semibold text-gray-800">Pemeliharaan Data</h3>
+        <p className="mb-6 text-sm text-gray-600">
+          Atur ulang tanggal jatuh tempo pada semua faktur berdasarkan tanggal faktur dengan termin 30 hari.
+        </p>
+        <button
+          onClick={() => {
+            if (window.confirm("Apakah Anda yakin ingin mengatur ulang semua tanggal jatuh tempo faktur menjadi 30 hari setelah tanggal faktur?")) {
+              resetDueDates();
+              alert("Tanggal jatuh tempo berhasil diatur ulang.");
+            }
+          }}
+          className="flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-3 text-sm font-medium text-white hover:bg-orange-700 w-full sm:w-auto"
+        >
+          <RefreshCcw size={18} />
+          Reset Tanggal Jatuh Tempo
+        </button>
       </div>
 
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 shadow-sm">

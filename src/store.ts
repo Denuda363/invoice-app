@@ -327,6 +327,27 @@ export function useAppStore() {
     }));
   };
 
+  const resetDueDates = () => {
+    mutateData((prev) => {
+      const nextInvoices = prev.invoices.map((inv) => {
+        if (inv.date) {
+          const d = new Date(inv.date);
+          d.setDate(d.getDate() + 30);
+          // format logic needs to handle yyyy-MM-dd
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return {
+            ...inv,
+            dueDate: `${year}-${month}-${day}`,
+          };
+        }
+        return inv;
+      });
+      return { ...prev, invoices: nextInvoices };
+    });
+  };
+
   const editInvoice = (
     invoiceId: string,
     invoiceNumber: string,
@@ -478,5 +499,6 @@ export function useAppStore() {
     syncCustomersFromInvoices,
     restoreData,
     getBackupData,
+    resetDueDates,
   };
 }
