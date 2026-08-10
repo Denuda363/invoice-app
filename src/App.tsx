@@ -9,6 +9,7 @@ import { Customers } from "./components/Customers";
 import { Settings } from "./components/Settings";
 import { PaymentModal } from "./components/PaymentModal";
 import { PaymentHistoryModal } from "./components/PaymentHistoryModal";
+import { PaymentHistory } from "./components/PaymentHistory";
 import {
   LayoutDashboard,
   FilePlus,
@@ -19,6 +20,7 @@ import {
   X,
   Users,
   Settings as SettingsIcon,
+  Receipt,
 } from "lucide-react";
 import { cn } from "./utils";
 
@@ -33,6 +35,7 @@ export default function App() {
     { name: "Dashboard", id: "DASHBOARD" as ViewState, icon: LayoutDashboard },
     { name: "Input Faktur", id: "BULK_INPUT_INVOICE" as ViewState, icon: FilePlus },
     { name: "Riwayat Faktur", id: "INVOICE_HISTORY" as ViewState, icon: Files },
+    { name: "Riwayat Pembayaran", id: "PAYMENT_HISTORY" as ViewState, icon: Receipt },
     { name: "Data Konsumen", id: "CUSTOMERS" as ViewState, icon: Users },
     { name: "Laporan Jatuh Tempo", id: "REPORTS" as ViewState, icon: PieChart },
     { name: "Pengaturan", id: "SETTINGS" as ViewState, icon: SettingsIcon },
@@ -144,6 +147,12 @@ export default function App() {
               onUpdate={store.updateCustomer}
               onDelete={store.deleteCustomer}
               onSyncFromInvoices={store.syncCustomersFromInvoices}
+            />
+          )}
+
+          {view === "PAYMENT_HISTORY" && (
+            <PaymentHistory
+              invoices={store.invoices}
             />
           )}
 
