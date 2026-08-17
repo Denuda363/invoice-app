@@ -150,25 +150,10 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
   };
 
   const downloadPaymentTemplate = () => {
-    const aoa = [
+    const aoa: any[][] = [
       ["NO FAKTUR", "NOMINAL BAYAR", "TANGGAL BAYAR"],
       ["INV-1001", "500000", format(new Date(), "yyyy-MM-dd")],
     ];
-        let sumNominal = 0;
-    let sumBayar = 0;
-    let sumSisa = 0;
-
-    filteredInvoices.forEach((inv) => {
-      const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
-      const remaining = inv.totalAmount - totalPaid;
-      sumNominal += inv.totalAmount;
-      sumBayar += totalPaid;
-      sumSisa += remaining;
-    });
-
-    aoa.push([
-      "", "", "", "TOTAL", formatRp(sumNominal), formatRp(sumBayar), formatRp(sumSisa), "", "", "", ""
-    ]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
@@ -598,6 +583,115 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
         }
       }
     });
+
+    const groupedByDate: Record<string, typeof filteredInvoices> = {};
+    filteredInvoices.forEach(inv => {
+      const dateStr = format(new Date(inv.date), "yyyy-MM-dd");
+      if (!groupedByDate[dateStr]) groupedByDate[dateStr] = [];
+      groupedByDate[dateStr].push(inv);
+    });
+
+    const dateAoa: any[][] = [
+      ["NO", "CUSTOMER", "TGL FAKTUR", "NO FAKTUR", "NOMINAL", "BAYAR", "SISA", "TGL JATUH TEMPO", "KETERANGAN"],
+    ];
+
+    let grandNominalDate = 0;
+    let grandBayarDate = 0;
+    let grandSisaDate = 0;
+    let grandTotalFakturDate = 0;
+
+    Object.keys(groupedByDate).sort().forEach(dateStr => {
+      const invs = groupedByDate[dateStr];
+      let subNominal = 0;
+      let subBayar = 0;
+      let subSisa = 0;
+
+      invs.forEach((inv, index) => {
+        const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+        const remaining = inv.totalAmount - totalPaid;
+        
+        subNominal += inv.totalAmount;
+        subBayar += totalPaid;
+        subSisa += remaining;
+        grandTotalFakturDate++;
+
+        const invDate = new Date(inv.date);
+        const dueDate = new Date(inv.dueDate);
+
+        dateAoa.push([
+          index + 1,
+          inv.customerName,
+          format(invDate, "dd-MMM-yy", { locale: id }).toLowerCase(),
+          inv.invoiceNumber,
+          formatRp(inv.totalAmount),
+          totalPaid > 0 ? formatRp(totalPaid) : "",
+          formatRp(remaining),
+          format(dueDate, "dd-MMM-yy", { locale: id }).toLowerCase(),
+          inv.status === "PAID" || remaining <= 0 ? "Lunas" : ""
+        ]);
+      });
+
+      dateAoa.push([
+        "",
+        "",
+        `TOTAL ${format(new Date(dateStr), "dd-MMM-yy", { locale: id }).toLowerCase()}`,
+        `${invs.length} Faktur`,
+        formatRp(subNominal),
+        formatRp(subBayar),
+        formatRp(subSisa),
+        "",
+        ""
+      ]);
+      dateAoa.push(["", "", "", "", "", "", "", "", ""]);
+
+      grandNominalDate += subNominal;
+      grandBayarDate += subBayar;
+      grandSisaDate += subSisa;
+    });
+
+    dateAoa.push([
+      "",
+      "",
+      "GRAND TOTAL",
+      `${grandTotalFakturDate} Faktur`,
+      formatRp(grandNominalDate),
+      formatRp(grandBayarDate),
+      formatRp(grandSisaDate),
+      "",
+      ""
+    ]);
+
+    const dateWs = XLSX.utils.aoa_to_sheet(dateAoa);
+    
+    for (let R = 0; R < dateAoa.length; ++R) {
+      for (let C = 0; C < dateAoa[R].length; ++C) {
+        const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+        if (dateWs[cell_ref]) {
+          if (R === 0) {
+            dateWs[cell_ref].s = headerStyle;
+          } else if (dateAoa[R][2] && typeof dateAoa[R][2] === 'string' && dateAoa[R][2].startsWith("TOTAL")) {
+             dateWs[cell_ref].s = totalStyle;
+          } else if (dateAoa[R][2] === "GRAND TOTAL") {
+             dateWs[cell_ref].s = totalStyle;
+          } else if (dateAoa[R][0] === "") {
+             // empty rows
+          } else {
+             dateWs[cell_ref].s = regularStyle;
+             if (dateAoa[R][8] === "Lunas") {
+                dateWs[cell_ref].s = paidStyle;
+             }
+          }
+        }
+      }
+    }
+
+    dateWs["!cols"] = [
+      { wch: 5 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, dateWs, "Rekap Per Tanggal");
 
     XLSX.writeFile(wb, "Laporan_Jatuh_Tempo.xlsx");
   };

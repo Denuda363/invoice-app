@@ -10,7 +10,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 interface DashboardProps {
   invoices: Invoice[];
   onAddFaktur: () => void;
-  onPayFaktur: (invoice: Invoice) => void;
+  onPayFaktur?: (invoice: Invoice) => void;
 }
 
 export function Dashboard({ invoices, onAddFaktur }: DashboardProps) {
