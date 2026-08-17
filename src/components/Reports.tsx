@@ -494,10 +494,18 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             ["", "", "", "", "", "", "", "TGL", "BULAN", "TAHUN", ""],
           ];
 
+          let custSumNominal = 0;
+          let custSumBayar = 0;
+          let custSumSisa = 0;
+
           customerInvoices.forEach((inv, index) => {
             const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
             const remaining = inv.totalAmount - totalPaid;
             
+            custSumNominal += inv.totalAmount;
+            custSumBayar += totalPaid;
+            custSumSisa += remaining;
+
             const invDate = new Date(inv.date);
             const dueDate = new Date(inv.dueDate);
 
@@ -516,16 +524,20 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
             ]);
           });
 
+          custAoa.push([
+            "", "", "", "TOTAL", formatRp(custSumNominal), formatRp(custSumBayar), formatRp(custSumSisa), "", "", "", ""
+          ]);
+
           const custWs = XLSX.utils.aoa_to_sheet(custAoa);
           
           for (let R = 0; R < custAoa.length; ++R) {
             const isHeader = R === 0 || R === 1;
-            const isPaid = !isHeader && custAoa[R][10] === "Lunas";
+            const isTotal = R === custAoa.length - 1;
+            const isPaid = !isHeader && !isTotal && custAoa[R][10] === "Lunas";
             
             let isOverdue = false;
             let isWarning = false;
-
-            if (!isHeader && !isPaid) {
+            if (!isHeader && !isPaid && !isTotal) {
               const inv = customerInvoices[R - 2];
               if (inv) {
                 const dueDate = new Date(inv.dueDate);
@@ -544,6 +556,8 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
               if (custWs[cell_ref]) {
                 if (isHeader) {
                   custWs[cell_ref].s = headerStyle;
+                } else if (isTotal) {
+                  custWs[cell_ref].s = totalStyle;
                 } else if (isPaid) {
                   custWs[cell_ref].s = paidStyle;
                 } else if (isOverdue) {
