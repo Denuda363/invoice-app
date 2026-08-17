@@ -586,9 +586,9 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
 
     const groupedByDate: Record<string, typeof filteredInvoices> = {};
     filteredInvoices.forEach(inv => {
-      const dateStr = format(new Date(inv.date), "yyyy-MM-dd");
-      if (!groupedByDate[dateStr]) groupedByDate[dateStr] = [];
-      groupedByDate[dateStr].push(inv);
+      const dayStr = format(new Date(inv.date), "dd"); // Group by day of the month
+      if (!groupedByDate[dayStr]) groupedByDate[dayStr] = [];
+      groupedByDate[dayStr].push(inv);
     });
 
     const dateAoa: any[][] = [
@@ -600,11 +600,14 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
     let grandSisaDate = 0;
     let grandTotalFakturDate = 0;
 
-    Object.keys(groupedByDate).sort().forEach(dateStr => {
-      const invs = groupedByDate[dateStr];
+    Object.keys(groupedByDate).sort((a, b) => parseInt(a) - parseInt(b)).forEach(dayStr => {
+      const invs = groupedByDate[dayStr];
       let subNominal = 0;
       let subBayar = 0;
       let subSisa = 0;
+
+      // Sort invoices inside the group by the actual date
+      invs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       invs.forEach((inv, index) => {
         const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
@@ -634,7 +637,7 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
       dateAoa.push([
         "",
         "",
-        `TOTAL ${format(new Date(dateStr), "dd-MMM-yy", { locale: id }).toLowerCase()}`,
+        `TOTAL TANGGAL ${parseInt(dayStr, 10)}`,
         `${invs.length} Faktur`,
         formatRp(subNominal),
         formatRp(subBayar),
