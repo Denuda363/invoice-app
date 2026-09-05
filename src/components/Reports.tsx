@@ -710,6 +710,137 @@ export function Reports({ invoices, customers = [], onPayFaktur, onBulkPay }: Re
 
     XLSX.utils.book_append_sheet(wb, dateWs, "Rekap Per Tanggal");
 
+    // --- REKAP PER CUSTOMER (ALL IN ONE SHEET) ---
+    const supplierAoa: any[][] = [];
+    const supplierMerges: any[] = [];
+    let currentRow = 0;
+
+    const groupedByCustomer: Record<string, typeof filteredInvoices> = {};
+    filteredInvoices.forEach(inv => {
+      if (!groupedByCustomer[inv.customerName]) groupedByCustomer[inv.customerName] = [];
+      groupedByCustomer[inv.customerName].push(inv);
+    });
+
+    Object.keys(groupedByCustomer).sort().forEach(customerName => {
+      const invs = groupedByCustomer[customerName];
+      let subNominal = 0;
+      let subBayar = 0;
+      let subSisa = 0;
+
+      supplierAoa.push([
+        "NO", "CUSTOMER", "TGL FAKTUR", "NO FAKTUR", "NOMINAL", "BAYAR", "SISA", "TGL JATUH TEMPO", "", "", "keterangan lunas"
+      ]);
+      supplierAoa.push([
+        "", "", "", "", "", "", "", "TGL", "BULAN", "TAHUN", ""
+      ]);
+
+      supplierMerges.push(
+        { s: { r: currentRow, c: 0 }, e: { r: currentRow + 1, c: 0 } },
+        { s: { r: currentRow, c: 1 }, e: { r: currentRow + 1, c: 1 } },
+        { s: { r: currentRow, c: 2 }, e: { r: currentRow + 1, c: 2 } },
+        { s: { r: currentRow, c: 3 }, e: { r: currentRow + 1, c: 3 } },
+        { s: { r: currentRow, c: 4 }, e: { r: currentRow + 1, c: 4 } },
+        { s: { r: currentRow, c: 5 }, e: { r: currentRow + 1, c: 5 } },
+        { s: { r: currentRow, c: 6 }, e: { r: currentRow + 1, c: 6 } },
+        { s: { r: currentRow, c: 7 }, e: { r: currentRow, c: 9 } },
+        { s: { r: currentRow, c: 10 }, e: { r: currentRow + 1, c: 10 } }
+      );
+
+      currentRow += 2;
+
+      invs.forEach((inv, index) => {
+        const totalPaid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+        const remaining = inv.totalAmount - totalPaid;
+        
+        subNominal += inv.totalAmount;
+        subBayar += totalPaid;
+        subSisa += remaining;
+
+        const invDate = new Date(inv.date);
+        const dueDate = new Date(inv.dueDate);
+
+        supplierAoa.push([
+          index + 1,
+          inv.customerName,
+          format(invDate, "dd-MMM-yy", { locale: id }).toLowerCase(),
+          inv.invoiceNumber,
+          formatRp(inv.totalAmount),
+          totalPaid > 0 ? formatRp(totalPaid) : "",
+          formatRp(remaining),
+          format(dueDate, "dd", { locale: id }),
+          format(dueDate, "MMMM", { locale: id }).toUpperCase(),
+          format(dueDate, "yyyy", { locale: id }),
+          inv.status === "PAID" || remaining <= 0 ? "Lunas" : ""
+        ]);
+        currentRow++;
+      });
+
+      supplierAoa.push([
+        "", "", "", "TOTAL", formatRp(subNominal), formatRp(subBayar), formatRp(subSisa), "", "", "", ""
+      ]);
+      currentRow++;
+
+      supplierAoa.push(["", "", "", "", "", "", "", "", "", "", ""]);
+      currentRow++;
+    });
+
+    const supplierWs = XLSX.utils.aoa_to_sheet(supplierAoa);
+    supplierWs["!merges"] = supplierMerges;
+
+    for (let R = 0; R < supplierAoa.length; ++R) {
+      const isHeader = supplierAoa[R][0] === "NO" || supplierAoa[R][7] === "TGL";
+      const isTotal = supplierAoa[R][3] === "TOTAL";
+      const isEmpty = supplierAoa[R].every((cell: any) => cell === "");
+      const isPaid = !isHeader && !isTotal && !isEmpty && supplierAoa[R][10] === "Lunas";
+
+      let isOverdue = false;
+      let isWarning = false;
+      
+      if (!isHeader && !isTotal && !isEmpty && !isPaid) {
+        const invNo = supplierAoa[R][3];
+        const inv = filteredInvoices.find(i => i.invoiceNumber === invNo);
+        if (inv) {
+          const dueDate = new Date(inv.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+          const diffDays = differenceInDays(dueDate, today);
+          if (diffDays < 0) {
+            isOverdue = true;
+          } else if (diffDays <= 3) {
+            isWarning = true;
+          }
+        }
+      }
+
+      for (let C = 0; C < supplierAoa[R].length; ++C) {
+        const cell_ref = XLSX.utils.encode_cell({ c: C, r: R });
+        if (supplierWs[cell_ref]) {
+          if (isHeader) {
+            supplierWs[cell_ref].s = headerStyle;
+          } else if (isTotal) {
+            supplierWs[cell_ref].s = totalStyle;
+          } else if (isEmpty) {
+            // no style
+          } else if (isPaid) {
+            supplierWs[cell_ref].s = paidStyle;
+          } else if (isOverdue) {
+            supplierWs[cell_ref].s = overdueStyle;
+          } else if (isWarning) {
+            supplierWs[cell_ref].s = warningStyle;
+          } else {
+            supplierWs[cell_ref].s = regularStyle;
+          }
+        }
+      }
+    }
+
+    supplierWs["!cols"] = [
+      { wch: 5 }, { wch: 25 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 5 },
+      { wch: 12 }, { wch: 8 }, { wch: 20 },
+    ];
+
+    XLSX.utils.book_append_sheet(wb, supplierWs, "Rekap Per Supplier");
+
     XLSX.writeFile(wb, "Laporan_Jatuh_Tempo.xlsx");
   };
 
